@@ -14,6 +14,7 @@ import Dashboard from './pages/Dashboard'
 import Endpoints from './pages/Endpoints'
 import EndpointDetails from './pages/EndpointDetails'
 import Alerts from './pages/Alerts'
+import AlertDetails from './pages/AlertDetails'
 import Network from './pages/Network'
 import Processes from './pages/Processes'
 import FileIntegrity from './pages/FileIntegrity'
@@ -54,6 +55,11 @@ function App() {
               <Route
                 path="/alerts"
                 element={<Alerts />}
+              />
+
+              <Route
+              path="/alerts/:alertId"
+              element={<AlertDetails />}
               />
 
               <Route
