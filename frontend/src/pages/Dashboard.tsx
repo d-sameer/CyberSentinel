@@ -8,6 +8,8 @@ import {
 import StatCard from '../components/dashboard/StatCard'
 import NetworkActivity from '../components/dashboard/NetworkActivity'
 import ThreatOverview from '../components/dashboard/ThreatOverview'
+import SecurityEvents from '../components/dashboard/SecurityEvents'
+import EndpointHealth from '../components/dashboard/EndpointHealth'
 
 function Dashboard() {
   return (
@@ -73,6 +75,13 @@ function Dashboard() {
         <NetworkActivity />
 
         <ThreatOverview />
+      </section>
+
+      {/* Live Events + Endpoint Health */}
+      <section className="dashboard-grid dashboard-grid-bottom">
+        <SecurityEvents />
+
+        <EndpointHealth />
       </section>
     </div>
   )
