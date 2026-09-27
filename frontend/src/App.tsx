@@ -20,6 +20,7 @@ import NetworkConnectionDetails from './pages/NetworkConnectionDetails'
 import Processes from './pages/Processes'
 import ProcessDetails from './pages/ProcessDetails'
 import FileIntegrity from './pages/FileIntegrity'
+import FileIntegrityDetails from './pages/FileIntegrityDetails'
 import Forensics from './pages/Forensics'
 import AuditLogs from './pages/AuditLogs'
 
@@ -88,6 +89,11 @@ function App() {
               <Route
                 path="/file-integrity"
                 element={<FileIntegrity />}
+              />
+
+              <Route
+                path="/file-integrity/:fileId"
+                element={<FileIntegrityDetails />}
               />
 
               <Route
