@@ -27,6 +27,8 @@ import AuditLogs from './pages/AuditLogs'
 import AuditLogDetails from './pages/AuditLogDetails'
 import DetectionRules from './pages/DetectionRules'
 import DetectionRuleDetails from './pages/DetectionRuleDetails'
+import Incidents from './pages/Incidents'
+import IncidentDetails from './pages/IncidentDetails'
 
 function App() {
   return (
@@ -123,6 +125,16 @@ function App() {
               <Route
               path="/detection-rules"
               element={<DetectionRules />}
+              />
+
+              <Route
+              path="/incidents"
+              element={<Incidents />}
+              />
+
+              <Route
+              path="/incidents/:incidentId"
+              element={<IncidentDetails />}
               />
 
               <Route

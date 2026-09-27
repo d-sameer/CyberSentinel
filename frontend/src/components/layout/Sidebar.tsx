@@ -11,6 +11,7 @@ import {
   ShieldCheck,
   Terminal,
   Users,
+  ClipboardList,
 } from 'lucide-react'
 
 import { NavLink } from 'react-router-dom'
@@ -61,6 +62,11 @@ const navigationItems = [
     label: 'Detection Rules',
     icon: ShieldCheck,
     path: '/detection-rules',
+  },
+  {
+    label: 'Incidents',
+    icon: ClipboardList,
+    path: '/incidents',
   },
 ]
 
