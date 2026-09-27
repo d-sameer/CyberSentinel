@@ -8,6 +8,7 @@ import {
   Network,
   Settings,
   Shield,
+  ShieldCheck,
   Terminal,
   Users,
 } from 'lucide-react'
@@ -55,6 +56,11 @@ const navigationItems = [
     label: 'Audit Logs',
     icon: BarChart3,
     path: '/audit-logs',
+  },
+  {
+    label: 'Detection Rules',
+    icon: ShieldCheck,
+    path: '/detection-rules',
   },
 ]
 

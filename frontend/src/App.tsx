@@ -25,6 +25,8 @@ import Forensics from './pages/Forensics'
 import ForensicsDetails from './pages/ForensicsDetails'
 import AuditLogs from './pages/AuditLogs'
 import AuditLogDetails from './pages/AuditLogDetails'
+import DetectionRules from './pages/DetectionRules'
+import DetectionRuleDetails from './pages/DetectionRuleDetails'
 
 function App() {
   return (
@@ -116,6 +118,16 @@ function App() {
               <Route
               path="/audit-logs/:logId"
               element={<AuditLogDetails />}
+              />
+
+              <Route
+              path="/detection-rules"
+              element={<DetectionRules />}
+              />
+
+              <Route
+              path="/detection-rules/:ruleId"
+              element={<DetectionRuleDetails />}
               />
 
               <Route
