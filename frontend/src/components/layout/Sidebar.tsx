@@ -12,6 +12,7 @@ import {
   Terminal,
   Users,
   ClipboardList,
+  Database,
 } from 'lucide-react'
 
 import { NavLink } from 'react-router-dom'
@@ -67,6 +68,11 @@ const navigationItems = [
     label: 'Incidents',
     icon: ClipboardList,
     path: '/incidents',
+  },
+  {
+    label: 'Threat Intelligence',
+    icon: Database,
+    path: '/threat-intelligence',
   },
 ]
 
