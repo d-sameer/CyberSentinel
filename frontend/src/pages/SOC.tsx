@@ -1,8 +1,8 @@
 import {
   Activity,
-  Bug,
   AlertTriangle,
   ArrowUpRight,
+  Bug,
   CheckCircle2,
   Clock3,
   Cpu,
@@ -17,6 +17,7 @@ import {
   Wifi,
   Zap,
 } from 'lucide-react'
+import { Link } from 'react-router-dom'
 
 type Severity = 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW' | 'INFO'
 
@@ -217,6 +218,7 @@ export default function SOC() {
         <div className="soc-header-status">
           <div className="soc-status-card">
             <span className="soc-status-dot" />
+
             <div>
               <strong>SOC ONLINE</strong>
               <span>All monitoring services operational</span>
@@ -288,6 +290,7 @@ export default function SOC() {
                 <Activity size={14} />
                 LIVE TELEMETRY
               </div>
+
               <h2>Security Event Stream</h2>
             </div>
 
@@ -324,6 +327,7 @@ export default function SOC() {
 
                 <div className="soc-event-content">
                   <strong>{event.event}</strong>
+
                   <span>
                     {event.source} • {event.asset}
                   </span>
@@ -333,9 +337,13 @@ export default function SOC() {
                   {event.status}
                 </div>
 
-                <button className="soc-event-action" title="View event">
+                <Link
+                  to={`/soc/events/${event.id}`}
+                  className="soc-event-action"
+                  title="View event"
+                >
                   <ArrowUpRight size={16} />
-                </button>
+                </Link>
               </div>
             ))}
           </div>
@@ -353,6 +361,7 @@ export default function SOC() {
                 <ShieldCheck size={14} />
                 SECURITY POSTURE
               </div>
+
               <h2>Current Risk</h2>
             </div>
           </div>
@@ -367,6 +376,7 @@ export default function SOC() {
 
             <div className="soc-score-info">
               <strong>Elevated Risk</strong>
+
               <span>
                 Security posture requires active monitoring and investigation.
               </span>
@@ -379,6 +389,7 @@ export default function SOC() {
                 <CheckCircle2 size={15} />
                 Endpoint Coverage
               </span>
+
               <strong>96%</strong>
             </div>
 
@@ -387,6 +398,7 @@ export default function SOC() {
                 <CheckCircle2 size={15} />
                 Detection Coverage
               </span>
+
               <strong>91%</strong>
             </div>
 
@@ -395,6 +407,7 @@ export default function SOC() {
                 <AlertTriangle size={15} />
                 Vulnerability Exposure
               </span>
+
               <strong>68%</strong>
             </div>
 
@@ -403,6 +416,7 @@ export default function SOC() {
                 <AlertTriangle size={15} />
                 Identity Risk
               </span>
+
               <strong>74%</strong>
             </div>
           </div>
@@ -417,6 +431,7 @@ export default function SOC() {
                 <Network size={14} />
                 ACTIVITY
               </div>
+
               <h2>Threat Activity</h2>
             </div>
 
@@ -444,6 +459,7 @@ export default function SOC() {
                       className="soc-chart-bar"
                       style={{ height: `${height}%` }}
                     />
+
                     <span>{index + 1}</span>
                   </div>
                 ),
@@ -456,14 +472,17 @@ export default function SOC() {
               <i className="critical-dot" />
               Critical
             </span>
+
             <span>
               <i className="high-dot" />
               High
             </span>
+
             <span>
               <i className="medium-dot" />
               Medium
             </span>
+
             <span>
               <i className="info-dot" />
               Informational
@@ -478,17 +497,47 @@ export default function SOC() {
                 <ShieldAlert size={14} />
                 THREAT CATEGORIES
               </div>
+
               <h2>Detection Distribution</h2>
             </div>
           </div>
 
           <div className="soc-activity-list">
-            <ActivityBar label="Credential Attacks" value="31" width="88%" />
-            <ActivityBar label="Suspicious Execution" value="24" width="72%" />
-            <ActivityBar label="Network Anomalies" value="19" width="58%" />
-            <ActivityBar label="Privilege Escalation" value="14" width="43%" />
-            <ActivityBar label="Defense Evasion" value="9" width="28%" />
-            <ActivityBar label="Malware Activity" value="7" width="21%" />
+            <ActivityBar
+              label="Credential Attacks"
+              value="31"
+              width="88%"
+            />
+
+            <ActivityBar
+              label="Suspicious Execution"
+              value="24"
+              width="72%"
+            />
+
+            <ActivityBar
+              label="Network Anomalies"
+              value="19"
+              width="58%"
+            />
+
+            <ActivityBar
+              label="Privilege Escalation"
+              value="14"
+              width="43%"
+            />
+
+            <ActivityBar
+              label="Defense Evasion"
+              value="9"
+              width="28%"
+            />
+
+            <ActivityBar
+              label="Malware Activity"
+              value="7"
+              width="21%"
+            />
           </div>
         </section>
       </div>
@@ -501,6 +550,7 @@ export default function SOC() {
                 <Server size={14} />
                 ATTACK SURFACE
               </div>
+
               <h2>Endpoint Health</h2>
             </div>
 
@@ -541,6 +591,7 @@ export default function SOC() {
                 <UserRound size={14} />
                 ANALYST ACTIVITY
               </div>
+
               <h2>SOC Queue</h2>
             </div>
           </div>
@@ -550,10 +601,12 @@ export default function SOC() {
               <div className="soc-queue-icon critical">
                 <AlertTriangle size={16} />
               </div>
+
               <div>
                 <strong>3 critical alerts</strong>
                 <span>Awaiting analyst review</span>
               </div>
+
               <b>03</b>
             </div>
 
@@ -561,10 +614,12 @@ export default function SOC() {
               <div className="soc-queue-icon high">
                 <ShieldAlert size={16} />
               </div>
+
               <div>
                 <strong>5 active incidents</strong>
                 <span>Investigation in progress</span>
               </div>
+
               <b>05</b>
             </div>
 
@@ -572,10 +627,12 @@ export default function SOC() {
               <div className="soc-queue-icon medium">
                 <Bug size={16} />
               </div>
+
               <div>
                 <strong>7 vulnerabilities</strong>
                 <span>Require remediation</span>
               </div>
+
               <b>07</b>
             </div>
           </div>

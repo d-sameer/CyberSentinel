@@ -36,6 +36,7 @@ import IdentityDetails from './pages/IdentityDetails'
 import Vulnerabilities from './pages/Vulnerabilities'
 import VulnerabilityDetails from './pages/VulnerabilityDetails'
 import SOC from './pages/SOC'
+import SOCEventDetails from './pages/SOCEventDetails'
 
 function App() {
   return (
@@ -182,6 +183,11 @@ function App() {
               <Route 
               path="/soc" 
               element={<SOC />} 
+              />
+
+              <Route 
+              path="/soc/events/:eventId" 
+              element={<SOCEventDetails />} 
               />
 
               <Route
