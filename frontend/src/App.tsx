@@ -34,6 +34,7 @@ import ThreatIntelligenceDetails from './pages/ThreatIntelligenceDetails'
 import Identity from './pages/Identity'
 import IdentityDetails from './pages/IdentityDetails'
 import Vulnerabilities from './pages/Vulnerabilities'
+import VulnerabilityDetails from './pages/VulnerabilityDetails'
 
 function App() {
   return (
@@ -170,6 +171,11 @@ function App() {
               <Route
               path="/vulnerabilities" 
               element={<Vulnerabilities />}
+              />
+
+              <Route
+              path="/vulnerabilities/:vulnerabilityId"
+              element={<VulnerabilityDetails />}
               />
 
               <Route
