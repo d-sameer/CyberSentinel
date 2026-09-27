@@ -18,6 +18,7 @@ import AlertDetails from './pages/AlertDetails'
 import Network from './pages/Network'
 import NetworkConnectionDetails from './pages/NetworkConnectionDetails'
 import Processes from './pages/Processes'
+import ProcessDetails from './pages/ProcessDetails'
 import FileIntegrity from './pages/FileIntegrity'
 import Forensics from './pages/Forensics'
 import AuditLogs from './pages/AuditLogs'
@@ -33,6 +34,7 @@ function App() {
 
           <main className="main-content">
             <Routes>
+
               <Route
                 path="/"
                 element={<Navigate to="/dashboard" replace />}
@@ -48,9 +50,9 @@ function App() {
                 element={<Endpoints />}
               />
 
-              <Route            
-              path="/endpoints/:endpointId"
-              element={<EndpointDetails />}
+              <Route
+                path="/endpoints/:endpointId"
+                element={<EndpointDetails />}
               />
 
               <Route
@@ -59,8 +61,8 @@ function App() {
               />
 
               <Route
-              path="/alerts/:alertId"
-              element={<AlertDetails />}
+                path="/alerts/:alertId"
+                element={<AlertDetails />}
               />
 
               <Route
@@ -69,13 +71,18 @@ function App() {
               />
 
               <Route
-              path="/network/:connectionId"
-              element={<NetworkConnectionDetails />}
+                path="/network/:connectionId"
+                element={<NetworkConnectionDetails />}
               />
 
               <Route
                 path="/processes"
                 element={<Processes />}
+              />
+
+              <Route
+                path="/processes/:processId"
+                element={<ProcessDetails />}
               />
 
               <Route
@@ -97,6 +104,7 @@ function App() {
                 path="*"
                 element={<Navigate to="/dashboard" replace />}
               />
+
             </Routes>
           </main>
         </div>
