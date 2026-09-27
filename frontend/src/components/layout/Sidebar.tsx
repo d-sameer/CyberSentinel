@@ -13,6 +13,7 @@ import {
   Users,
   ClipboardList,
   Database,
+  KeyRound,
 } from 'lucide-react'
 
 import { NavLink } from 'react-router-dom'
@@ -73,6 +74,11 @@ const navigationItems = [
     label: 'Threat Intelligence',
     icon: Database,
     path: '/threat-intelligence',
+  },
+  {
+    label: 'Identity',
+    path: '/identity',
+    icon: KeyRound,
   },
 ]
 

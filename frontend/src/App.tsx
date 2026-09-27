@@ -31,6 +31,8 @@ import Incidents from './pages/Incidents'
 import IncidentDetails from './pages/IncidentDetails'
 import ThreatIntelligence from './pages/ThreatIntelligence'
 import ThreatIntelligenceDetails from './pages/ThreatIntelligenceDetails'
+import Identity from './pages/Identity'
+import IdentityDetails from './pages/IdentityDetails'
 
 function App() {
   return (
@@ -152,6 +154,16 @@ function App() {
               <Route
               path="/detection-rules/:ruleId"
               element={<DetectionRuleDetails />}
+              />
+
+              <Route
+              path="/identity"
+              element={<Identity />}
+              />
+
+              <Route
+              path="/identity/:eventId"
+              element={<IdentityDetails />}
               />
 
               <Route
