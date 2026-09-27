@@ -22,6 +22,7 @@ import ProcessDetails from './pages/ProcessDetails'
 import FileIntegrity from './pages/FileIntegrity'
 import FileIntegrityDetails from './pages/FileIntegrityDetails'
 import Forensics from './pages/Forensics'
+import ForensicsDetails from './pages/ForensicsDetails'
 import AuditLogs from './pages/AuditLogs'
 
 function App() {
@@ -99,6 +100,11 @@ function App() {
               <Route
                 path="/forensics"
                 element={<Forensics />}
+              />
+
+              <Route
+              path="/forensics/:evidenceId"
+              element={<ForensicsDetails />}
               />
 
               <Route
