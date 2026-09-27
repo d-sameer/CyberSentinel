@@ -86,6 +86,11 @@ const navigationItems = [
     path: '/vulnerabilities',
     icon: Bug,
   },
+  {
+    label: 'SOC',
+    path: '/soc',
+    icon: Activity,
+  },
 ]
 
 function Sidebar() {
