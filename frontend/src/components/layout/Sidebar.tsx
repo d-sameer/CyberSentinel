@@ -14,6 +14,7 @@ import {
   ClipboardList,
   Database,
   KeyRound,
+  Bug,
 } from 'lucide-react'
 
 import { NavLink } from 'react-router-dom'
@@ -79,6 +80,11 @@ const navigationItems = [
     label: 'Identity',
     path: '/identity',
     icon: KeyRound,
+  },
+  {
+    label: 'Vulnerabilities',
+    path: '/vulnerabilities',
+    icon: Bug,
   },
 ]
 

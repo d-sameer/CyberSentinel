@@ -33,6 +33,7 @@ import ThreatIntelligence from './pages/ThreatIntelligence'
 import ThreatIntelligenceDetails from './pages/ThreatIntelligenceDetails'
 import Identity from './pages/Identity'
 import IdentityDetails from './pages/IdentityDetails'
+import Vulnerabilities from './pages/Vulnerabilities'
 
 function App() {
   return (
@@ -164,6 +165,11 @@ function App() {
               <Route
               path="/identity/:eventId"
               element={<IdentityDetails />}
+              />
+
+              <Route
+              path="/vulnerabilities" 
+              element={<Vulnerabilities />}
               />
 
               <Route
