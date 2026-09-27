@@ -24,6 +24,7 @@ import FileIntegrityDetails from './pages/FileIntegrityDetails'
 import Forensics from './pages/Forensics'
 import ForensicsDetails from './pages/ForensicsDetails'
 import AuditLogs from './pages/AuditLogs'
+import AuditLogDetails from './pages/AuditLogDetails'
 
 function App() {
   return (
@@ -110,6 +111,11 @@ function App() {
               <Route
                 path="/audit-logs"
                 element={<AuditLogs />}
+              />
+
+              <Route
+              path="/audit-logs/:logId"
+              element={<AuditLogDetails />}
               />
 
               <Route
