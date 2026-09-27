@@ -16,6 +16,7 @@ import EndpointDetails from './pages/EndpointDetails'
 import Alerts from './pages/Alerts'
 import AlertDetails from './pages/AlertDetails'
 import Network from './pages/Network'
+import NetworkConnectionDetails from './pages/NetworkConnectionDetails'
 import Processes from './pages/Processes'
 import FileIntegrity from './pages/FileIntegrity'
 import Forensics from './pages/Forensics'
@@ -65,6 +66,11 @@ function App() {
               <Route
                 path="/network"
                 element={<Network />}
+              />
+
+              <Route
+              path="/network/:connectionId"
+              element={<NetworkConnectionDetails />}
               />
 
               <Route
