@@ -15,6 +15,7 @@ import {
   UserRound,
 } from 'lucide-react'
 
+import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 
 type Severity = 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'INFO'
@@ -51,6 +52,20 @@ type EventDetail = {
     description: string
   }[]
   assessment: string
+}
+
+type ApiEvent = {
+  id: number
+  event_id: string
+  title: string
+  description: string
+  severity: Severity
+  status: string
+  category: string
+  asset: string
+  source: string
+  confidence: number
+  timestamp: string
 }
 
 const eventDetails: Record<string, EventDetail> = {
@@ -445,8 +460,137 @@ function statusClass(status: string) {
 
 function SOCEventDetails() {
   const { eventId } = useParams()
+  const [event, setEvent] = useState<EventDetail | null>(null)
+  const [apiConnected, setApiConnected] = useState(false)
+  const [loading, setLoading] = useState(true)
 
-  const event = eventId ? eventDetails[eventId] : undefined
+  useEffect(() => {
+    let cancelled = false
+
+    async function loadEvent() {
+      if (!eventId) {
+        setEvent(null)
+        setApiConnected(false)
+        setLoading(false)
+        return
+      }
+
+      const fallbackEvent = eventDetails[eventId]
+
+      try {
+        const response = await fetch(
+          `http://127.0.0.1:8000/api/events/${eventId}`,
+        )
+
+        if (!response.ok) {
+          throw new Error('SOC event API request failed')
+        }
+
+        const apiEvent: ApiEvent = await response.json()
+
+        if (cancelled) {
+          return
+        }
+
+        const apiDate = new Date(apiEvent.timestamp)
+        const time = Number.isNaN(apiDate.getTime())
+          ? fallbackEvent?.timestamp ?? 'N/A'
+          : apiDate.toLocaleTimeString([], {
+              hour: '2-digit',
+              minute: '2-digit',
+              second: '2-digit',
+              hour12: false,
+            })
+
+        const date = Number.isNaN(apiDate.getTime())
+          ? fallbackEvent?.date ?? 'N/A'
+          : apiEvent.timestamp.slice(0, 10)
+
+        const mergedEvent: EventDetail = {
+          ...(fallbackEvent ?? {
+            id: apiEvent.event_id,
+            title: apiEvent.title,
+            description: apiEvent.description,
+            severity: apiEvent.severity,
+            status: apiEvent.status,
+            timestamp: time,
+            date,
+            asset: apiEvent.asset,
+            source: apiEvent.source,
+            category: apiEvent.category,
+            confidence: apiEvent.confidence,
+            rule: 'Backend Event',
+            ruleId: 'N/A',
+            mitre: 'Not available',
+            mitreId: 'N/A',
+            sourceIp: 'N/A',
+            destinationIp: 'N/A',
+            destinationPort: 'N/A',
+            protocol: 'N/A',
+            process: 'N/A',
+            processPath: 'N/A',
+            user: 'N/A',
+            parentProcess: 'N/A',
+            alertId: null,
+            incidentId: null,
+            timeline: [],
+            assessment:
+              'Detailed investigation context is not available from the backend for this event yet.',
+          }),
+          id: apiEvent.event_id,
+          title: apiEvent.title,
+          description: apiEvent.description,
+          severity: apiEvent.severity,
+          status: apiEvent.status,
+          timestamp: time,
+          date,
+          asset: apiEvent.asset,
+          source: apiEvent.source,
+          category: apiEvent.category,
+          confidence: apiEvent.confidence,
+        }
+
+        setEvent(mergedEvent)
+        setApiConnected(true)
+      } catch {
+        if (cancelled) {
+          return
+        }
+
+        setEvent(fallbackEvent ?? null)
+        setApiConnected(false)
+      } finally {
+        if (!cancelled) {
+          setLoading(false)
+        }
+      }
+    }
+
+    loadEvent()
+
+    return () => {
+      cancelled = true
+    }
+  }, [eventId])
+
+  if (loading) {
+    return (
+      <div className="soc-event-page">
+        <Link to="/soc" className="soc-event-back">
+          <ArrowLeft size={16} />
+          Back to SOC Command Center
+        </Link>
+
+        <div className="soc-event-card">
+          <div className="soc-event-card-body">
+            <div className="soc-event-empty">
+              Loading SOC event...
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   if (!event) {
     return (
@@ -498,6 +642,16 @@ function SOCEventDetails() {
             <div>
               <div className="soc-event-eyebrow">
                 SOC EVENT INVESTIGATION · {event.id}
+                <span
+                  className={
+                    apiConnected
+                      ? 'soc-event-api-status'
+                      : 'soc-event-api-status soc-event-api-status-demo'
+                  }
+                >
+                  <span />
+                  {apiConnected ? 'API CONNECTED' : 'DEMO DATA'}
+                </span>
               </div>
 
               <h1 className="soc-event-title">
