@@ -68,6 +68,16 @@ type ApiEvent = {
   timestamp: string
 }
 
+type ResponseAction = {
+  id: number
+  action_id: string
+  event_id: string
+  action: string
+  status: string
+  analyst: string
+  created_at: string
+}
+
 const eventDetails: Record<string, EventDetail> = {
   'EVT-1048': {
     id: 'EVT-1048',
@@ -463,6 +473,10 @@ function SOCEventDetails() {
   const [event, setEvent] = useState<EventDetail | null>(null)
   const [apiConnected, setApiConnected] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [actionLoading, setActionLoading] = useState(false)
+  const [actionMessage, setActionMessage] = useState('')
+  const [actionError, setActionError] = useState('')
+  const [responseActions, setResponseActions] = useState<ResponseAction[]>([])
 
   useEffect(() => {
     let cancelled = false
@@ -573,6 +587,31 @@ function SOCEventDetails() {
     }
   }, [eventId])
 
+  useEffect(() => {
+    if (eventId) {
+      loadResponseActions(eventId)
+    } else {
+      setResponseActions([])
+    }
+  }, [eventId])
+
+  async function loadResponseActions(currentEventId: string) {
+    try {
+      const response = await fetch(
+        `http://127.0.0.1:8000/api/events/${currentEventId}/actions`,
+      )
+
+      if (!response.ok) {
+        throw new Error('Response action API request failed')
+      }
+
+      const actions: ResponseAction[] = await response.json()
+      setResponseActions(actions)
+    } catch {
+      setResponseActions([])
+    }
+  }
+
   if (loading) {
     return (
       <div className="soc-event-page">
@@ -590,6 +629,48 @@ function SOCEventDetails() {
         </div>
       </div>
     )
+  }
+
+  async function runResponseAction(action: string) {
+    if (!eventId || actionLoading) {
+      return
+    }
+
+    setActionLoading(true)
+    setActionMessage('')
+    setActionError('')
+
+    try {
+      const response = await fetch(
+        `http://127.0.0.1:8000/api/events/${eventId}/actions`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            action,
+            analyst: 'SOC Analyst',
+          }),
+        },
+      )
+
+      if (!response.ok) {
+        throw new Error('Response action failed')
+      }
+
+      const result: ResponseAction = await response.json()
+      setActionMessage(
+        `${result.action.replaceAll('_', ' ')} logged successfully · ${result.status}`,
+      )
+      await loadResponseActions(eventId)
+    } catch {
+      setActionError(
+        'Unable to submit the response action. Make sure the backend API is running.',
+      )
+    } finally {
+      setActionLoading(false)
+    }
   }
 
   if (!event) {
@@ -1114,19 +1195,59 @@ function SOCEventDetails() {
 
             <div className="soc-event-card-body">
 
-              <div className="soc-event-actions">
+              <div
+                className="soc-event-actions"
+                style={{
+                  display: 'flex',
+                  alignItems: 'stretch',
+                  gap: '12px',
+                  flexWrap: 'wrap',
+                  width: '100%',
+                }}
+              >
 
                 <button
                   className="soc-event-action soc-event-action-primary"
                   type="button"
+                  disabled={actionLoading}
+                  onClick={() => runResponseAction('MARK_REVIEWED')}
+                  style={{
+                    minWidth: '160px',
+                    minHeight: '42px',
+                    padding: '0 16px',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                    whiteSpace: 'nowrap',
+                    flex: '0 0 auto',
+                    borderRadius: '8px',
+                  }}
                 >
                   <ShieldCheck size={15} />
-                  Mark Reviewed
+                  {actionLoading ? 'Submitting...' : 'Mark Reviewed'}
                 </button>
 
                 <button
                   className="soc-event-action"
                   type="button"
+                  disabled={actionLoading}
+                  onClick={() => runResponseAction('ESCALATE')}
+                  style={{
+                    minWidth: '125px',
+                    minHeight: '42px',
+                    padding: '0 16px',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                    whiteSpace: 'nowrap',
+                    flex: '0 0 auto',
+                    borderRadius: '8px',
+                    borderColor: 'rgba(245, 158, 11, 0.28)',
+                    background: 'rgba(245, 158, 11, 0.06)',
+                    color: '#f59e0b',
+                  }}
                 >
                   <Activity size={15} />
                   Escalate
@@ -1135,12 +1256,133 @@ function SOCEventDetails() {
                 <button
                   className="soc-event-action soc-event-action-danger"
                   type="button"
+                  disabled={actionLoading}
+                  onClick={() => runResponseAction('ISOLATE_ASSET')}
+                  style={{
+                    minWidth: '155px',
+                    minHeight: '42px',
+                    padding: '0 16px',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                    whiteSpace: 'nowrap',
+                    flex: '0 0 auto',
+                    borderRadius: '8px',
+                  }}
                 >
                   <AlertTriangle size={15} />
                   Isolate Asset
                 </button>
 
               </div>
+
+              {actionMessage && (
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    marginTop: '14px',
+                    padding: '10px 12px',
+                    border: '1px solid rgba(34, 197, 94, 0.2)',
+                    borderRadius: '8px',
+                    background: 'rgba(34, 197, 94, 0.06)',
+                    color: '#22c55e',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                  }}
+                >
+                  <ShieldCheck size={14} />
+                  {actionMessage}
+                </div>
+              )}
+
+              {actionError && (
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    marginTop: '14px',
+                    padding: '10px 12px',
+                    border: '1px solid rgba(239, 68, 68, 0.2)',
+                    borderRadius: '8px',
+                    background: 'rgba(239, 68, 68, 0.06)',
+                    color: '#ef4444',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                  }}
+                >
+                  <AlertTriangle size={14} />
+                  {actionError}
+                </div>
+              )}
+
+              {responseActions.length > 0 && (
+                <div
+                  style={{
+                    marginTop: '18px',
+                    borderTop: '1px solid rgba(148, 163, 184, 0.12)',
+                    paddingTop: '14px',
+                  }}
+                >
+                  <div
+                    style={{
+                      marginBottom: '10px',
+                      color: '#94a3b8',
+                      fontSize: '10px',
+                      fontWeight: 700,
+                      letterSpacing: '0.08em',
+                      textTransform: 'uppercase',
+                    }}
+                  >
+                    Recent Response Actions
+                  </div>
+
+                  {responseActions.slice(0, 5).map((item) => (
+                    <div
+                      key={item.action_id}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: '12px',
+                        padding: '10px 12px',
+                        marginBottom: '7px',
+                        border: '1px solid rgba(148, 163, 184, 0.10)',
+                        borderRadius: '8px',
+                        background: 'rgba(15, 23, 42, 0.45)',
+                      }}
+                    >
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                        <strong
+                          style={{
+                            color: '#e2e8f0',
+                            fontSize: '11px',
+                            textTransform: 'uppercase',
+                          }}
+                        >
+                          {item.action.replaceAll('_', ' ')}
+                        </strong>
+                        <span style={{ color: '#64748b', fontSize: '10px' }}>
+                          {item.analyst}
+                        </span>
+                      </div>
+                      <span
+                        style={{
+                          color: '#22c55e',
+                          fontSize: '9px',
+                          fontWeight: 700,
+                          letterSpacing: '0.06em',
+                        }}
+                      >
+                        {item.status}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
 
             </div>
           </section>
