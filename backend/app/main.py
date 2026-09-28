@@ -8,6 +8,9 @@ from app.routes.endpoints import router as endpoints_router
 from app.routes.endpoint_telemetry import (
     router as endpoint_telemetry_router,
 )
+from app.routes.endpoint_activity import (
+    router as endpoint_activity_router,
+)
 
 
 Base.metadata.create_all(bind=engine)
@@ -36,6 +39,7 @@ app.include_router(events_router)
 app.include_router(alerts_router)
 app.include_router(endpoints_router)
 app.include_router(endpoint_telemetry_router)
+app.include_router(endpoint_activity_router)
 
 
 @app.get("/")

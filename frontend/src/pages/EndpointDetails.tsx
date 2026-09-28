@@ -41,6 +41,18 @@ type ApiTelemetry = {
   collected_at: string
 }
 
+type ApiActivity = {
+  id: number
+  activity_id: string
+  endpoint_id: string
+  title: string
+  description: string
+  severity: string
+  category: string
+  status: string
+  observed_at: string
+}
+
 type EndpointData = {
   name: string
   os: string
@@ -77,7 +89,8 @@ const fallbackEndpointData: Record<string, EndpointData> = {
     agent: 'Running',
     openAlerts: 3,
     openIncidents: 1,
-    description: 'Primary Windows workstation monitored by CyberSentinel.',
+    description:
+      'Primary Windows workstation monitored by CyberSentinel.',
   },
 
   'WIN-02': {
@@ -96,7 +109,8 @@ const fallbackEndpointData: Record<string, EndpointData> = {
     agent: 'Running',
     openAlerts: 4,
     openIncidents: 2,
-    description: 'Windows workstation with elevated security activity.',
+    description:
+      'Windows workstation with elevated security activity.',
   },
 
   'WIN-03': {
@@ -115,7 +129,8 @@ const fallbackEndpointData: Record<string, EndpointData> = {
     agent: 'Running',
     openAlerts: 1,
     openIncidents: 0,
-    description: 'Windows workstation monitored by the endpoint agent.',
+    description:
+      'Windows workstation monitored by the endpoint agent.',
   },
 
   'WIN-04': {
@@ -134,7 +149,8 @@ const fallbackEndpointData: Record<string, EndpointData> = {
     agent: 'Warning',
     openAlerts: 2,
     openIncidents: 1,
-    description: 'Windows workstation with endpoint agent warnings.',
+    description:
+      'Windows workstation with endpoint agent warnings.',
   },
 
   'LINUX-01': {
@@ -153,7 +169,8 @@ const fallbackEndpointData: Record<string, EndpointData> = {
     agent: 'Running',
     openAlerts: 0,
     openIncidents: 0,
-    description: 'Linux server monitored by CyberSentinel.',
+    description:
+      'Linux server monitored by CyberSentinel.',
   },
 
   'SRV-DC01': {
@@ -172,9 +189,49 @@ const fallbackEndpointData: Record<string, EndpointData> = {
     agent: 'Running',
     openAlerts: 1,
     openIncidents: 0,
-    description: 'Windows Server domain controller monitored by CyberSentinel.',
+    description:
+      'Windows Server domain controller monitored by CyberSentinel.',
   },
 }
+
+const fallbackActivities: ApiActivity[] = [
+  {
+    id: 1,
+    activity_id: 'ACT-DEMO-001',
+    endpoint_id: 'WIN-01',
+    title: 'Authentication event detected',
+    description:
+      'New authentication activity observed on endpoint.',
+    severity: 'HIGH',
+    category: 'Identity',
+    status: 'REVIEW',
+    observed_at: new Date().toISOString(),
+  },
+  {
+    id: 2,
+    activity_id: 'ACT-DEMO-002',
+    endpoint_id: 'WIN-01',
+    title: 'Process activity recorded',
+    description:
+      'New process execution recorded by endpoint agent.',
+    severity: 'MEDIUM',
+    category: 'Process',
+    status: 'MONITORED',
+    observed_at: new Date().toISOString(),
+  },
+  {
+    id: 3,
+    activity_id: 'ACT-DEMO-003',
+    endpoint_id: 'WIN-01',
+    title: 'Network connection observed',
+    description:
+      'Endpoint established an outbound network connection.',
+    severity: 'LOW',
+    category: 'Network',
+    status: 'MONITORED',
+    observed_at: new Date().toISOString(),
+  },
+]
 
 function formatLastSeen(value: string) {
   if (!value) {
@@ -188,6 +245,56 @@ function formatLastSeen(value: string) {
   }
 
   return date.toLocaleString()
+}
+
+function formatActivityTime(value: string) {
+  const date = new Date(value)
+
+  if (Number.isNaN(date.getTime())) {
+    return 'Unknown'
+  }
+
+  const diffMs = Date.now() - date.getTime()
+  const diffMinutes = Math.max(
+    0,
+    Math.floor(diffMs / 60000),
+  )
+
+  if (diffMinutes < 1) {
+    return 'Just now'
+  }
+
+  if (diffMinutes < 60) {
+    return `${diffMinutes} min ago`
+  }
+
+  const diffHours = Math.floor(diffMinutes / 60)
+
+  if (diffHours < 24) {
+    return `${diffHours} hr ago`
+  }
+
+  const diffDays = Math.floor(diffHours / 24)
+
+  return `${diffDays} day${diffDays === 1 ? '' : 's'} ago`
+}
+
+function getSeverityClass(severity: string) {
+  switch (severity.toUpperCase()) {
+    case 'CRITICAL':
+    case 'HIGH':
+      return 'activity-high'
+
+    case 'MEDIUM':
+      return 'activity-medium'
+
+    case 'LOW':
+    case 'INFO':
+      return 'activity-low'
+
+    default:
+      return 'activity-low'
+  }
 }
 
 function mapApiEndpoint(api: ApiEndpoint): EndpointData {
@@ -208,23 +315,15 @@ function mapApiEndpoint(api: ApiEndpoint): EndpointData {
     status: normalizedStatus,
     lastSeen: formatLastSeen(api.last_seen),
     risk: api.risk_level?.toUpperCase() || 'UNKNOWN',
-
-    // These telemetry values are currently UI/demo values because
-    // the endpoint API does not expose CPU, memory, or disk metrics yet.
     cpu: fallback?.cpu ?? '—',
     memory: fallback?.memory ?? '—',
     disk: fallback?.disk ?? '—',
-
-    // These network fields are also kept as supplemental endpoint
-    // telemetry until the backend exposes them.
     gateway: fallback?.gateway ?? '192.168.1.1',
     dns: fallback?.dns ?? '192.168.1.1',
-
     agent:
       api.agent_status?.toUpperCase() === 'HEALTHY'
         ? 'Running'
         : api.agent_status || 'Unknown',
-
     openAlerts: api.open_alerts,
     openIncidents: api.open_incidents,
     description: api.description,
@@ -234,11 +333,23 @@ function mapApiEndpoint(api: ApiEndpoint): EndpointData {
 function EndpointDetails() {
   const { endpointId } = useParams()
 
-  const [endpoint, setEndpoint] = useState<EndpointData | null>(null)
-  const [telemetry, setTelemetry] = useState<ApiTelemetry | null>(null)
-  const [telemetryConnected, setTelemetryConnected] = useState(false)
+  const [endpoint, setEndpoint] =
+    useState<EndpointData | null>(null)
+
+  const [telemetry, setTelemetry] =
+    useState<ApiTelemetry | null>(null)
+
+  const [activities, setActivities] =
+    useState<ApiActivity[]>([])
+
   const [loading, setLoading] = useState(true)
   const [apiConnected, setApiConnected] = useState(false)
+  const [telemetryConnected, setTelemetryConnected] =
+    useState(false)
+
+  const [activityConnected, setActivityConnected] =
+    useState(false)
+
   const [error, setError] = useState('')
 
   const loadEndpoint = async () => {
@@ -257,22 +368,25 @@ function EndpointDetails() {
       )
 
       if (!response.ok) {
-        throw new Error(`API returned ${response.status}`)
+        throw new Error(
+          `Endpoint API returned ${response.status}`,
+        )
       }
 
       const data: ApiEndpoint = await response.json()
 
       setEndpoint(mapApiEndpoint(data))
       setApiConnected(true)
+
       try {
         const telemetryResponse = await fetch(
           `http://127.0.0.1:8000/api/endpoints/${encodeURIComponent(endpointId)}/telemetry`,
         )
-        
+
         if (telemetryResponse.ok) {
           const telemetryData: ApiTelemetry =
             await telemetryResponse.json()
-            
+
           setTelemetry(telemetryData)
           setTelemetryConnected(true)
         } else {
@@ -284,22 +398,63 @@ function EndpointDetails() {
           'Failed to load endpoint telemetry:',
           telemetryError,
         )
-        
+
         setTelemetry(null)
         setTelemetryConnected(false)
       }
-    } catch (err) {
-      console.error('Failed to load endpoint:', err)
 
-      const fallback = fallbackEndpointData[endpointId]
+      try {
+        const activityResponse = await fetch(
+          `http://127.0.0.1:8000/api/endpoints/${encodeURIComponent(endpointId)}/activity`,
+        )
+
+        if (activityResponse.ok) {
+          const activityData: ApiActivity[] =
+            await activityResponse.json()
+
+          setActivities(activityData)
+          setActivityConnected(true)
+        } else {
+          setActivities(fallbackActivities)
+          setActivityConnected(false)
+        }
+      } catch (activityError) {
+        console.error(
+          'Failed to load endpoint activity:',
+          activityError,
+        )
+
+        setActivities(fallbackActivities)
+        setActivityConnected(false)
+      }
+    } catch (err) {
+      console.error(
+        'Failed to load endpoint:',
+        err,
+      )
+
+      const fallback =
+        endpointId
+          ? fallbackEndpointData[endpointId]
+          : undefined
 
       if (fallback) {
         setEndpoint(fallback)
         setApiConnected(false)
-        setError('Backend unavailable. Showing demo endpoint data.')
+        setTelemetry(null)
+        setTelemetryConnected(false)
+        setActivities(fallbackActivities)
+        setActivityConnected(false)
+        setError(
+          'Backend unavailable. Showing demo endpoint data.',
+        )
       } else {
         setEndpoint(null)
         setApiConnected(false)
+        setTelemetry(null)
+        setTelemetryConnected(false)
+        setActivities([])
+        setActivityConnected(false)
         setError('Endpoint could not be loaded.')
       }
     } finally {
@@ -320,7 +475,8 @@ function EndpointDetails() {
           <h1>Loading Endpoint</h1>
 
           <p>
-            CyberSentinel is retrieving endpoint security information...
+            CyberSentinel is retrieving endpoint
+            security information...
           </p>
         </div>
       </div>
@@ -377,12 +533,14 @@ function EndpointDetails() {
           }
         >
           <span />
-          {apiConnected ? 'API CONNECTED' : 'DEMO DATA'}
+          {apiConnected
+            ? 'API CONNECTED'
+            : 'DEMO DATA'}
         </div>
 
         <div className="endpoint-api-source">
-          {telemetryConnected
-            ? 'Endpoint + Telemetry API'
+          {activityConnected && telemetryConnected
+            ? 'Endpoint + Telemetry + Activity API'
             : 'Endpoint API'}
         </div>
 
@@ -394,7 +552,11 @@ function EndpointDetails() {
         >
           <RefreshCw
             size={14}
-            className={loading ? 'endpoint-refresh-spin' : ''}
+            className={
+              loading
+                ? 'endpoint-refresh-spin'
+                : ''
+            }
           />
           Refresh
         </button>
@@ -436,7 +598,7 @@ function EndpointDetails() {
 
       </div>
 
-      {/* ERROR / FALLBACK MESSAGE */}
+      {/* API FALLBACK MESSAGE */}
 
       {error && !apiConnected && (
         <div className="endpoint-api-offline">
@@ -584,7 +746,9 @@ function EndpointDetails() {
           </div>
 
           <div className="endpoint-detail-main">
-            {apiConnected ? 'Backend API' : 'Demo'}
+            {apiConnected
+              ? 'Backend API'
+              : 'Demo'}
           </div>
 
           <div className="endpoint-detail-muted">
@@ -629,7 +793,9 @@ function EndpointDetails() {
               </div>
 
               <div className="resource-value">
-                {telemetry ? `${telemetry.cpu_usage}%` : endpoint.cpu}
+                {telemetry
+                  ? `${telemetry.cpu_usage}%`
+                  : endpoint.cpu}
               </div>
 
             </div>
@@ -642,7 +808,7 @@ function EndpointDetails() {
                     : endpoint.cpu === '—'
                       ? '0%'
                       : endpoint.cpu,
-                    }}
+                }}
               />
             </div>
 
@@ -669,7 +835,7 @@ function EndpointDetails() {
                     : endpoint.memory === '—'
                       ? '0%'
                       : endpoint.memory,
-                    }}
+                }}
               />
             </div>
 
@@ -696,7 +862,7 @@ function EndpointDetails() {
                     : endpoint.disk === '—'
                       ? '0%'
                       : endpoint.disk,
-                    }}
+                }}
               />
             </div>
 
@@ -734,22 +900,27 @@ function EndpointDetails() {
             <div className="network-info-row">
               <span>Default Gateway</span>
               <strong>
-                {telemetry?.gateway ?? endpoint.gateway}
+                {telemetry?.gateway ??
+                  endpoint.gateway}
               </strong>
             </div>
 
             <div className="network-info-row">
               <span>DNS Server</span>
               <strong>
-                {telemetry?.dns_server ?? endpoint.dns}
+                {telemetry?.dns_server ??
+                  endpoint.dns}
               </strong>
             </div>
 
             <div className="network-info-row">
+
               <span>Connection</span>
 
               <strong
                 className={
+                  telemetry?.network_status ===
+                    'DISCONNECTED' ||
                   endpoint.status === 'OFFLINE'
                     ? 'network-offline'
                     : 'network-online'
@@ -792,73 +963,77 @@ function EndpointDetails() {
 
         </div>
 
+        <div className="endpoint-activity-api-status">
+
+          <span
+            className={
+              activityConnected
+                ? 'activity-api-dot activity-api-online'
+                : 'activity-api-dot activity-api-demo'
+            }
+          />
+
+          {activityConnected
+            ? 'LIVE ACTIVITY DATA'
+            : 'DEMO ACTIVITY DATA'}
+
+        </div>
+
         <div className="endpoint-activity-list">
 
-          <div className="endpoint-activity-row">
+          {activities.length === 0 ? (
 
-            <div className="activity-indicator activity-high" />
-
-            <div className="activity-content">
-
-              <strong>
-                Authentication event detected
-              </strong>
+            <div className="endpoint-activity-empty">
+              <Activity size={20} />
 
               <span>
-                New authentication activity observed on endpoint
+                No recent security activity found
+                for this endpoint.
               </span>
-
             </div>
 
-            <div className="activity-time">
-              2 min ago
-            </div>
+          ) : (
 
-          </div>
+            activities.map((activity) => (
 
-          <div className="endpoint-activity-row">
+              <div
+                className="endpoint-activity-row"
+                key={activity.activity_id}
+              >
 
-            <div className="activity-indicator activity-medium" />
+                <div
+                  className={`activity-indicator ${getSeverityClass(activity.severity)}`}
+                />
 
-            <div className="activity-content">
+                <div className="activity-content">
 
-              <strong>
-                Process activity recorded
-              </strong>
+                  <strong>
+                    {activity.title}
+                  </strong>
 
-              <span>
-                New process execution recorded by endpoint agent
-              </span>
+                  <span>
+                    {activity.description}
+                  </span>
 
-            </div>
+                  <small>
+                    {activity.category}
+                    {' • '}
+                    {activity.status}
+                  </small>
 
-            <div className="activity-time">
-              8 min ago
-            </div>
+                </div>
 
-          </div>
+                <div className="activity-time">
+                  {formatActivityTime(
+                    activity.observed_at,
+                  )}
+                </div>
 
-          <div className="endpoint-activity-row">
+              </div>
 
-            <div className="activity-indicator activity-low" />
+            ))
 
-            <div className="activity-content">
-
-              <strong>
-                Network connection observed
-              </strong>
-
-              <span>
-                Endpoint established an outbound network connection
-              </span>
-
-            </div>
-
-            <div className="activity-time">
-              14 min ago
-            </div>
-
-          </div>
+          )}
 
         </div>
 
