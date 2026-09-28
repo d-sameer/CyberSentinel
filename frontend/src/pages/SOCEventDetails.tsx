@@ -450,6 +450,58 @@ function severityClass(severity: Severity) {
   return `soc-event-badge soc-event-badge-${severity.toLowerCase()}`
 }
 
+function responseActionTone(action: string) {
+  const normalized = action.toUpperCase()
+
+  if (normalized === 'MARK_REVIEWED') {
+    return {
+      color: '#22c55e',
+      background: 'rgba(34, 197, 94, 0.08)',
+      border: 'rgba(34, 197, 94, 0.18)',
+    }
+  }
+
+  if (normalized === 'ESCALATE') {
+    return {
+      color: '#f59e0b',
+      background: 'rgba(245, 158, 11, 0.08)',
+      border: 'rgba(245, 158, 11, 0.18)',
+    }
+  }
+
+  if (normalized === 'ISOLATE_ASSET') {
+    return {
+      color: '#ef4444',
+      background: 'rgba(239, 68, 68, 0.08)',
+      border: 'rgba(239, 68, 68, 0.18)',
+    }
+  }
+
+  return {
+    color: '#38bdf8',
+    background: 'rgba(56, 189, 248, 0.08)',
+    border: 'rgba(56, 189, 248, 0.18)',
+  }
+}
+
+function formatActionTimestamp(timestamp: string) {
+  const date = new Date(timestamp)
+
+  if (Number.isNaN(date.getTime())) {
+    return timestamp
+  }
+
+  return date.toLocaleString([], {
+    year: 'numeric',
+    month: 'short',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  })
+}
+
 function statusClass(status: string) {
   const normalized = status.toLowerCase()
 
@@ -1324,63 +1376,164 @@ function SOCEventDetails() {
                   style={{
                     marginTop: '18px',
                     borderTop: '1px solid rgba(148, 163, 184, 0.12)',
-                    paddingTop: '14px',
+                    paddingTop: '16px',
                   }}
                 >
                   <div
                     style={{
-                      marginBottom: '10px',
-                      color: '#94a3b8',
-                      fontSize: '10px',
-                      fontWeight: 700,
-                      letterSpacing: '0.08em',
-                      textTransform: 'uppercase',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: '12px',
+                      marginBottom: '12px',
                     }}
                   >
-                    Recent Response Actions
-                  </div>
-
-                  {responseActions.slice(0, 5).map((item) => (
-                    <div
-                      key={item.action_id}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        gap: '12px',
-                        padding: '10px 12px',
-                        marginBottom: '7px',
-                        border: '1px solid rgba(148, 163, 184, 0.10)',
-                        borderRadius: '8px',
-                        background: 'rgba(15, 23, 42, 0.45)',
-                      }}
-                    >
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-                        <strong
-                          style={{
-                            color: '#e2e8f0',
-                            fontSize: '11px',
-                            textTransform: 'uppercase',
-                          }}
-                        >
-                          {item.action.replaceAll('_', ' ')}
-                        </strong>
-                        <span style={{ color: '#64748b', fontSize: '10px' }}>
-                          {item.analyst}
-                        </span>
-                      </div>
-                      <span
+                    <div>
+                      <div
                         style={{
-                          color: '#22c55e',
-                          fontSize: '9px',
+                          color: '#e2e8f0',
+                          fontSize: '11px',
                           fontWeight: 700,
                           letterSpacing: '0.06em',
+                          textTransform: 'uppercase',
                         }}
                       >
-                        {item.status}
-                      </span>
+                        Response Action History
+                      </div>
+                      <div
+                        style={{
+                          marginTop: '3px',
+                          color: '#64748b',
+                          fontSize: '10px',
+                        }}
+                      >
+                        Latest persisted SOC response actions
+                      </div>
                     </div>
-                  ))}
+
+                    <span
+                      style={{
+                        padding: '4px 7px',
+                        border: '1px solid rgba(56, 189, 248, 0.18)',
+                        borderRadius: '999px',
+                        background: 'rgba(56, 189, 248, 0.06)',
+                        color: '#38bdf8',
+                        fontSize: '9px',
+                        fontWeight: 700,
+                      }}
+                    >
+                      {responseActions.length} TOTAL
+                    </span>
+                  </div>
+
+                  {responseActions.slice(0, 5).map((item) => {
+                    const tone = responseActionTone(item.action)
+
+                    return (
+                      <div
+                        key={item.action_id}
+                        style={{
+                          display: 'grid',
+                          gridTemplateColumns: '30px minmax(0, 1fr)',
+                          columnGap: '10px',
+                          rowGap: '8px',
+                          alignItems: 'start',
+                          padding: '12px',
+                          marginBottom: '8px',
+                          border: '1px solid rgba(148, 163, 184, 0.10)',
+                          borderRadius: '9px',
+                          background: 'rgba(15, 23, 42, 0.45)',
+                        }}
+                      >
+                        <div
+                          style={{
+                            width: '30px',
+                            height: '30px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            flex: '0 0 auto',
+                            border: `1px solid ${tone.border}`,
+                            borderRadius: '8px',
+                            background: tone.background,
+                            color: tone.color,
+                            gridColumn: '1',
+                            gridRow: '1',
+                          }}
+                        >
+                          {item.action === 'MARK_REVIEWED' ? (
+                            <ShieldCheck size={14} />
+                          ) : item.action === 'ESCALATE' ? (
+                            <Activity size={14} />
+                          ) : (
+                            <AlertTriangle size={14} />
+                          )}
+                        </div>
+
+                        <div
+                          style={{
+                            minWidth: 0,
+                            gridColumn: '2',
+                            gridRow: '1',
+                          }}
+                        >
+                          <div style={{ minWidth: 0 }}>
+                            <div
+                              style={{
+                                color: '#e2e8f0',
+                                fontSize: '11px',
+                                fontWeight: 700,
+                                textTransform: 'uppercase',
+                                whiteSpace: 'nowrap',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                            }}
+                          >
+                            {item.action.replaceAll('_', ' ')}
+                            </div>
+
+                            <div
+                              style={{
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: '3px',
+                                marginTop: '5px',
+                                color: '#64748b',
+                                fontSize: '10px',
+                                lineHeight: 1.45,
+                              }}
+                            >
+                              <span>{item.analyst}</span>
+                              <span>{formatActionTimestamp(item.created_at)}</span>
+                              <span style={{ color: '#475569' }}>{item.action_id}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <span
+                          style={{
+                            gridColumn: '2',
+                            gridRow: '2',
+                            justifySelf: 'start',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            width: 'fit-content',
+                            padding: '5px 8px',
+                            border: `1px solid ${tone.border}`,
+                            borderRadius: '999px',
+                            background: tone.background,
+                            color: tone.color,
+                            fontSize: '9px',
+                            fontWeight: 700,
+                            letterSpacing: '0.06em',
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          {item.status}
+                        </span>
+                      </div>
+                    )
+                  })}
                 </div>
               )}
 
