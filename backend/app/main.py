@@ -5,6 +5,9 @@ from app.database import Base, engine
 from app.routes.alerts import router as alerts_router
 from app.routes.events import router as events_router
 from app.routes.endpoints import router as endpoints_router
+from app.routes.endpoint_telemetry import (
+    router as endpoint_telemetry_router,
+)
 
 
 Base.metadata.create_all(bind=engine)
@@ -32,6 +35,7 @@ app.add_middleware(
 app.include_router(events_router)
 app.include_router(alerts_router)
 app.include_router(endpoints_router)
+app.include_router(endpoint_telemetry_router)
 
 
 @app.get("/")

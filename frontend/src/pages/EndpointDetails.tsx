@@ -29,6 +29,18 @@ type ApiEndpoint = {
   description: string
 }
 
+type ApiTelemetry = {
+  id: number
+  endpoint_id: string
+  cpu_usage: number
+  memory_usage: number
+  disk_usage: number
+  gateway: string
+  dns_server: string
+  network_status: string
+  collected_at: string
+}
+
 type EndpointData = {
   name: string
   os: string
@@ -223,6 +235,8 @@ function EndpointDetails() {
   const { endpointId } = useParams()
 
   const [endpoint, setEndpoint] = useState<EndpointData | null>(null)
+  const [telemetry, setTelemetry] = useState<ApiTelemetry | null>(null)
+  const [telemetryConnected, setTelemetryConnected] = useState(false)
   const [loading, setLoading] = useState(true)
   const [apiConnected, setApiConnected] = useState(false)
   const [error, setError] = useState('')
@@ -250,6 +264,30 @@ function EndpointDetails() {
 
       setEndpoint(mapApiEndpoint(data))
       setApiConnected(true)
+      try {
+        const telemetryResponse = await fetch(
+          `http://127.0.0.1:8000/api/endpoints/${encodeURIComponent(endpointId)}/telemetry`,
+        )
+        
+        if (telemetryResponse.ok) {
+          const telemetryData: ApiTelemetry =
+            await telemetryResponse.json()
+            
+          setTelemetry(telemetryData)
+          setTelemetryConnected(true)
+        } else {
+          setTelemetry(null)
+          setTelemetryConnected(false)
+        }
+      } catch (telemetryError) {
+        console.error(
+          'Failed to load endpoint telemetry:',
+          telemetryError,
+        )
+        
+        setTelemetry(null)
+        setTelemetryConnected(false)
+      }
     } catch (err) {
       console.error('Failed to load endpoint:', err)
 
@@ -343,7 +381,9 @@ function EndpointDetails() {
         </div>
 
         <div className="endpoint-api-source">
-          Endpoint API
+          {telemetryConnected
+            ? 'Endpoint + Telemetry API'
+            : 'Endpoint API'}
         </div>
 
         <button
@@ -589,7 +629,7 @@ function EndpointDetails() {
               </div>
 
               <div className="resource-value">
-                {endpoint.cpu}
+                {telemetry ? `${telemetry.cpu_usage}%` : endpoint.cpu}
               </div>
 
             </div>
@@ -597,11 +637,12 @@ function EndpointDetails() {
             <div className="resource-bar">
               <span
                 style={{
-                  width:
-                    endpoint.cpu === '—'
+                  width: telemetry
+                    ? `${telemetry.cpu_usage}%`
+                    : endpoint.cpu === '—'
                       ? '0%'
                       : endpoint.cpu,
-                }}
+                    }}
               />
             </div>
 
@@ -613,7 +654,9 @@ function EndpointDetails() {
               </div>
 
               <div className="resource-value">
-                {endpoint.memory}
+                {telemetry
+                  ? `${telemetry.memory_usage}%`
+                  : endpoint.memory}
               </div>
 
             </div>
@@ -621,11 +664,12 @@ function EndpointDetails() {
             <div className="resource-bar">
               <span
                 style={{
-                  width:
-                    endpoint.memory === '—'
+                  width: telemetry
+                    ? `${telemetry.memory_usage}%`
+                    : endpoint.memory === '—'
                       ? '0%'
                       : endpoint.memory,
-                }}
+                    }}
               />
             </div>
 
@@ -637,7 +681,9 @@ function EndpointDetails() {
               </div>
 
               <div className="resource-value">
-                {endpoint.disk}
+                {telemetry
+                  ? `${telemetry.disk_usage}%`
+                  : endpoint.disk}
               </div>
 
             </div>
@@ -645,11 +691,12 @@ function EndpointDetails() {
             <div className="resource-bar">
               <span
                 style={{
-                  width:
-                    endpoint.disk === '—'
+                  width: telemetry
+                    ? `${telemetry.disk_usage}%`
+                    : endpoint.disk === '—'
                       ? '0%'
                       : endpoint.disk,
-                }}
+                    }}
               />
             </div>
 
@@ -686,12 +733,16 @@ function EndpointDetails() {
 
             <div className="network-info-row">
               <span>Default Gateway</span>
-              <strong>{endpoint.gateway}</strong>
+              <strong>
+                {telemetry?.gateway ?? endpoint.gateway}
+              </strong>
             </div>
 
             <div className="network-info-row">
               <span>DNS Server</span>
-              <strong>{endpoint.dns}</strong>
+              <strong>
+                {telemetry?.dns_server ?? endpoint.dns}
+              </strong>
             </div>
 
             <div className="network-info-row">
@@ -704,9 +755,11 @@ function EndpointDetails() {
                     : 'network-online'
                 }
               >
-                {endpoint.status === 'OFFLINE'
-                  ? 'Disconnected'
-                  : 'Connected'}
+                {telemetry
+                  ? telemetry.network_status
+                  : endpoint.status === 'OFFLINE'
+                    ? 'Disconnected'
+                    : 'Connected'}
               </strong>
 
             </div>
