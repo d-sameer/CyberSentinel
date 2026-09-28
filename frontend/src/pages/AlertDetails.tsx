@@ -1,559 +1,542 @@
+import { useEffect, useState } from 'react'
 import {
   Activity,
   AlertTriangle,
   ArrowLeft,
+  CheckCircle2,
   Clock3,
-  FileWarning,
-  Globe,
-  Laptop,
+  ExternalLink,
+  FileSearch,
+  LockKeyhole,
   Network,
-  Search,
-  Shield,
+  Server,
+  ShieldAlert,
+  ShieldCheck,
   Terminal,
+  UserRound,
 } from 'lucide-react'
-
 import { Link, useParams } from 'react-router-dom'
 
-type AlertSeverity = 'HIGH' | 'MEDIUM' | 'LOW'
-
-type AlertData = {
-  id: string
+type Alert = {
+  id: number
+  alert_id: string
   title: string
-  severity: AlertSeverity
-  status: string
   description: string
-  endpoint: string
-  operatingSystem: string
-  ipAddress: string
-  detectedAt: string
-  process: string
-  parentProcess: string
-  commandLine: string
-  sourceIp: string
-  destinationIp: string
-  protocol: string
-  fileName: string
-  fileHash: string
+  severity: string
+  status: string
+  category: string
+  source: string
+  asset: string
+  rule_id: string
+  confidence: number
+  created_at: string
 }
 
-const alertData: Record<string, AlertData> = {
-  'ALERT-001': {
-    id: 'ALERT-001',
-    title: 'Suspicious Process Detected',
-    severity: 'HIGH',
-    status: 'OPEN',
+const fallbackAlerts: Record<string, Alert> = {
+  'ALT-018': {
+    id: 1,
+    alert_id: 'ALT-018',
+    title: 'Malicious outbound connection detected',
     description:
-      'An unknown executable was launched on the monitored endpoint and triggered a behavioral security rule.',
-    endpoint: 'WIN-01',
-    operatingSystem: 'Windows 11',
-    ipAddress: '192.168.1.101',
-    detectedAt: '2 minutes ago',
-    process: 'powershell.exe',
-    parentProcess: 'explorer.exe',
-    commandLine:
-      'powershell.exe -ExecutionPolicy Bypass -File update.ps1',
-    sourceIp: '192.168.1.101',
-    destinationIp: '185.199.108.153',
-    protocol: 'HTTPS',
-    fileName: 'update.ps1',
-    fileHash:
-      '8f14e45fceea167a5a36dedd4bea2543',
-  },
-
-  'ALERT-002': {
-    id: 'ALERT-002',
-    title: 'Outbound Connection Detected',
-    severity: 'MEDIUM',
+      'Suspicious outbound HTTPS communication was detected from WIN-01 and correlated with PowerShell activity.',
+    severity: 'CRITICAL',
     status: 'INVESTIGATING',
-    description:
-      'A monitored endpoint established an unexpected outbound connection to an external destination.',
-    endpoint: 'KALI-01',
-    operatingSystem: 'Kali Linux',
-    ipAddress: '192.168.1.102',
-    detectedAt: '7 minutes ago',
-    process: 'curl',
-    parentProcess: 'bash',
-    commandLine:
-      'curl https://example-security-endpoint.test/api',
-    sourceIp: '192.168.1.102',
-    destinationIp: '203.0.113.45',
-    protocol: 'HTTPS',
-    fileName: 'curl',
-    fileHash:
-      'c4ca4238a0b923820dcc509a6f75849b',
+    category: 'Network',
+    source: 'Network Sensor',
+    asset: 'WIN-01',
+    rule_id: 'DET-005',
+    confidence: 98,
+    created_at: '2026-09-27T22:41:08',
   },
+  'ALT-021': {
+    id: 2,
+    alert_id: 'ALT-021',
+    title: 'PowerShell execution policy bypass',
+    description:
+      'PowerShell execution with policy bypass indicators was detected on WIN-02.',
+    severity: 'HIGH',
+    status: 'ALERTED',
+    category: 'Execution',
+    source: 'Endpoint Agent',
+    asset: 'WIN-02',
+    rule_id: 'DET-001',
+    confidence: 94,
+    created_at: '2026-09-27T22:41:05',
+  },
+  'ALT-007': {
+    id: 3,
+    alert_id: 'ALT-007',
+    title: 'Multiple authentication failures',
+    description:
+      'Repeated failed RDP authentication attempts were detected against WIN-02.',
+    severity: 'MEDIUM',
+    status: 'BLOCKED',
+    category: 'Identity',
+    source: 'Identity Monitor',
+    asset: 'WIN-02',
+    rule_id: 'DET-003',
+    confidence: 91,
+    created_at: '2026-09-27T22:40:59',
+  },
+  'ALT-031': {
+    id: 4,
+    alert_id: 'ALT-031',
+    title: 'Unsigned process execution detected',
+    description:
+      'An unsigned executable was observed running from a non-standard location on WIN-04.',
+    severity: 'HIGH',
+    status: 'INVESTIGATING',
+    category: 'Process',
+    source: 'EDR Sensor',
+    asset: 'WIN-04',
+    rule_id: 'DET-008',
+    confidence: 89,
+    created_at: '2026-09-27T22:40:54',
+  },
+  'ALT-034': {
+    id: 5,
+    alert_id: 'ALT-034',
+    title: 'Security file deletion attempt',
+    description:
+      'A protected security-related file deletion attempt was detected and blocked.',
+    severity: 'HIGH',
+    status: 'BLOCKED',
+    category: 'Defense Evasion',
+    source: 'File Integrity',
+    asset: 'WIN-02',
+    rule_id: 'DET-011',
+    confidence: 96,
+    created_at: '2026-09-27T22:40:42',
+  },
+  'ALT-037': {
+    id: 6,
+    alert_id: 'ALT-037',
+    title: 'New administrative group membership',
+    description:
+      'A user account was added to an administrative security group on WIN-03.',
+    severity: 'MEDIUM',
+    status: 'REVIEW',
+    category: 'Privilege',
+    source: 'Identity Monitor',
+    asset: 'WIN-03',
+    rule_id: 'DET-014',
+    confidence: 87,
+    created_at: '2026-09-27T22:40:36',
+  },
+}
 
-  'ALERT-003': {
-    id: 'ALERT-003',
-    title: 'File Integrity Change',
-    severity: 'LOW',
-    status: 'OPEN',
-    description:
-      'A protected system file was modified on a monitored endpoint.',
-    endpoint: 'LINUX-01',
-    operatingSystem: 'Ubuntu Linux',
-    ipAddress: '192.168.1.104',
-    detectedAt: '14 minutes ago',
-    process: 'systemd',
-    parentProcess: 'init',
-    commandLine: 'systemd',
-    sourceIp: '192.168.1.104',
-    destinationIp: '192.168.1.1',
-    protocol: 'TCP',
-    fileName: '/etc/hosts',
-    fileHash:
-      '6512bd43d9caa6e02c990b0a82652dca',
-  },
+function severityClass(severity: string) {
+  return `alert-detail-severity alert-detail-${severity.toLowerCase()}`
+}
+
+function statusClass(status: string) {
+  const value = status.toLowerCase()
+
+  if (value === 'investigating') {
+    return 'alert-detail-status alert-detail-status-cyan'
+  }
+
+  if (value === 'alerted') {
+    return 'alert-detail-status alert-detail-status-orange'
+  }
+
+  if (value === 'blocked') {
+    return 'alert-detail-status alert-detail-status-green'
+  }
+
+  return 'alert-detail-status alert-detail-status-slate'
+}
+
+function formatDate(value: string) {
+  return new Date(value).toLocaleString('en-IN', {
+    year: 'numeric',
+    month: 'short',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  })
 }
 
 function AlertDetails() {
   const { alertId } = useParams()
 
-  const alert = alertId
-    ? alertData[alertId]
-    : undefined
+  const [alert, setAlert] = useState<Alert | null>(
+    alertId ? fallbackAlerts[alertId] ?? null : null,
+  )
+
+  const [loading, setLoading] = useState(true)
+  const [apiOnline, setApiOnline] = useState(false)
+
+  useEffect(() => {
+    const loadAlert = async () => {
+      if (!alertId) {
+        setLoading(false)
+        return
+      }
+
+      try {
+        const response = await fetch(
+          `http://127.0.0.1:8000/api/alerts/${alertId}`,
+        )
+
+        if (!response.ok) {
+          throw new Error('Alert request failed')
+        }
+
+        const data: Alert = await response.json()
+
+        setAlert(data)
+        setApiOnline(true)
+      } catch {
+        setAlert(fallbackAlerts[alertId] ?? null)
+        setApiOnline(false)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadAlert()
+  }, [alertId])
+
+  if (loading) {
+    return (
+      <div className="alert-detail-loading">
+        <Activity size={18} />
+        Loading alert investigation...
+      </div>
+    )
+  }
 
   if (!alert) {
     return (
-      <div className="page-container">
-        <div className="alert-not-found">
-          <AlertTriangle size={32} />
+      <div className="alert-detail-not-found">
+        <AlertTriangle size={22} />
 
-          <h1>Alert Not Found</h1>
+        <h2>Alert not found</h2>
 
-          <p>
-            The requested security alert does not exist in
-            CyberSentinel.
-          </p>
+        <p>
+          The requested security alert could not be found.
+        </p>
 
-          <Link
-            to="/alerts"
-            className="back-to-alerts"
-          >
-            <ArrowLeft size={15} />
-            Back to Alerts
-          </Link>
-        </div>
+        <Link to="/alerts">
+          <ArrowLeft size={15} />
+          Back to Alert Center
+        </Link>
       </div>
     )
   }
 
   return (
-    <div className="page-container alert-details-page">
+    <div className="alert-detail-page">
 
-      {/* =========================================
-          BACK TO ALERTS
-          ========================================= */}
-
+      {/* BACK */}
       <Link
         to="/alerts"
-        className="alert-back-link"
+        className="alert-detail-back"
       >
         <ArrowLeft size={15} />
-        Back to Alerts
+        Back to Alert Center
       </Link>
 
-      {/* =========================================
-          ALERT HEADER
-          ========================================= */}
+      {/* HEADER */}
+      <section className="alert-detail-hero">
 
-      <div className="alert-details-header">
+        <div className="alert-detail-hero-icon">
+          <ShieldAlert size={28} />
+        </div>
 
-        <div className="alert-details-identity">
+        <div className="alert-detail-hero-main">
 
-          <div
-            className={`alert-details-icon alert-icon-${alert.severity.toLowerCase()}`}
-          >
-            <AlertTriangle size={25} />
+          <div className="alert-detail-eyebrow">
+            ALERT INVESTIGATION
           </div>
 
-          <div>
-            <div className="page-eyebrow">
-              SECURITY ALERT INVESTIGATION
-            </div>
+          <div className="alert-detail-id">
+            {alert.alert_id}
+          </div>
 
-            <h1>{alert.title}</h1>
+          <h1>
+            {alert.title}
+          </h1>
 
-            <div className="alert-details-subtitle">
-              {alert.id} • Detected {alert.detectedAt}
-            </div>
+          <p>
+            {alert.description}
+          </p>
+
+          <div className="alert-detail-tags">
+
+            <span className={severityClass(alert.severity)}>
+              {alert.severity}
+            </span>
+
+            <span className={statusClass(alert.status)}>
+              {alert.status}
+            </span>
+
+            <span className="alert-detail-category">
+              {alert.category}
+            </span>
+
           </div>
 
         </div>
 
-        <div className="alert-header-badges">
+        <div className="alert-detail-api-status">
+          <span className={apiOnline ? 'online' : 'offline'} />
+          {apiOnline ? 'API CONNECTED' : 'DEMO DATA'}
+        </div>
 
-          <div
-            className={`alert-severity-badge alert-severity-${alert.severity.toLowerCase()}`}
-          >
-            <span />
-            {alert.severity}
-          </div>
+      </section>
 
-          <div className="alert-status-badge">
-            {alert.status}
-          </div>
+      {/* OVERVIEW */}
+      <section className="alert-detail-metrics">
+
+        <div>
+          <Clock3 size={17} />
+
+          <span>EVENT TIME</span>
+
+          <strong>
+            {formatDate(alert.created_at)}
+          </strong>
+        </div>
+
+        <div>
+          <Server size={17} />
+
+          <span>AFFECTED ASSET</span>
+
+          <strong>
+            {alert.asset}
+          </strong>
+        </div>
+
+        <div>
+          <ShieldCheck size={17} />
+
+          <span>CONFIDENCE</span>
+
+          <strong>
+            {alert.confidence}%
+          </strong>
+        </div>
+
+        <div>
+          <FileSearch size={17} />
+
+          <span>DETECTION RULE</span>
+
+          <strong>
+            {alert.rule_id}
+          </strong>
+        </div>
+
+      </section>
+
+      {/* TWO COLUMN */}
+      <div className="alert-detail-grid">
+
+        {/* LEFT */}
+        <div className="alert-detail-column">
+
+          <section className="alert-detail-panel">
+
+            <div className="alert-detail-panel-heading">
+              <Network size={17} />
+
+              <div>
+                <span>TELEMETRY CONTEXT</span>
+                <h2>Security Activity</h2>
+              </div>
+            </div>
+
+            <div className="alert-detail-list">
+
+              <div>
+                <span>Source</span>
+                <strong>{alert.source}</strong>
+              </div>
+
+              <div>
+                <span>Category</span>
+                <strong>{alert.category}</strong>
+              </div>
+
+              <div>
+                <span>Asset</span>
+                <strong>{alert.asset}</strong>
+              </div>
+
+              <div>
+                <span>Detection Rule</span>
+                <strong>{alert.rule_id}</strong>
+              </div>
+
+            </div>
+
+          </section>
+
+          <section className="alert-detail-panel">
+
+            <div className="alert-detail-panel-heading">
+              <Terminal size={17} />
+
+              <div>
+                <span>DETECTION CONTEXT</span>
+                <h2>Rule Evaluation</h2>
+              </div>
+            </div>
+
+            <div className="alert-detail-rule">
+
+              <div>
+                <span>Rule Identifier</span>
+                <strong>{alert.rule_id}</strong>
+              </div>
+
+              <div>
+                <span>Detection Confidence</span>
+
+                <div className="alert-detail-confidence">
+                  <div>
+                    <span
+                      style={{
+                        width: `${alert.confidence}%`,
+                      }}
+                    />
+                  </div>
+
+                  <strong>
+                    {alert.confidence}%
+                  </strong>
+                </div>
+              </div>
+
+              <div>
+                <span>Evaluation Result</span>
+
+                <strong className="alert-detail-positive">
+                  Detection confirmed
+                </strong>
+              </div>
+
+            </div>
+
+          </section>
+
+        </div>
+
+        {/* RIGHT */}
+        <div className="alert-detail-column">
+
+          <section className="alert-detail-panel">
+
+            <div className="alert-detail-panel-heading">
+              <ShieldCheck size={17} />
+
+              <div>
+                <span>SECURITY CONTEXT</span>
+                <h2>Investigation Status</h2>
+              </div>
+            </div>
+
+            <div className="alert-detail-status-card">
+
+              <div className="alert-detail-status-icon">
+                {alert.status === 'BLOCKED'
+                  ? <CheckCircle2 size={22} />
+                  : <AlertTriangle size={22} />}
+              </div>
+
+              <div>
+                <strong>
+                  {alert.status}
+                </strong>
+
+                <p>
+                  Alert is currently tracked by the
+                  CyberSentinel investigation workflow.
+                </p>
+              </div>
+
+            </div>
+
+          </section>
+
+          <section className="alert-detail-panel">
+
+            <div className="alert-detail-panel-heading">
+              <UserRound size={17} />
+
+              <div>
+                <span>ANALYST CONTEXT</span>
+                <h2>Investigation Notes</h2>
+              </div>
+            </div>
+
+            <div className="alert-detail-notes">
+
+              <p>
+                This alert has been correlated with
+                endpoint and security telemetry for
+                further investigation.
+              </p>
+
+              <div className="alert-detail-note">
+                <CheckCircle2 size={15} />
+                Detection telemetry successfully correlated.
+              </div>
+
+              <div className="alert-detail-note">
+                <CheckCircle2 size={15} />
+                Asset context identified.
+              </div>
+
+              <div className="alert-detail-note">
+                <AlertTriangle size={15} />
+                Analyst review remains recommended.
+              </div>
+
+            </div>
+
+          </section>
 
         </div>
 
       </div>
 
-      {/* =========================================
-          DESCRIPTION
-          ========================================= */}
-
-      <section className="alert-description-panel">
-
-        <div className="alert-description-icon">
-          <Shield size={19} />
-        </div>
+      {/* RESPONSE */}
+      <section className="alert-detail-response">
 
         <div>
-          <div className="alert-description-title">
-            Detection Summary
+          <div className="alert-detail-response-icon">
+            <LockKeyhole size={19} />
           </div>
-
-          <p>
-            {alert.description}
-          </p>
-        </div>
-
-      </section>
-
-      {/* =========================================
-          AFFECTED ENDPOINT
-          ========================================= */}
-
-      <section className="alert-detail-grid">
-
-        <div className="alert-detail-card">
-
-          <div className="alert-detail-card-header">
-            <span>AFFECTED ENDPOINT</span>
-            <Laptop size={17} />
-          </div>
-
-          <div className="alert-detail-main">
-            {alert.endpoint}
-          </div>
-
-          <div className="alert-detail-muted">
-            {alert.operatingSystem}
-          </div>
-
-        </div>
-
-        <div className="alert-detail-card">
-
-          <div className="alert-detail-card-header">
-            <span>IP ADDRESS</span>
-            <Network size={17} />
-          </div>
-
-          <div className="alert-detail-main alert-mono">
-            {alert.ipAddress}
-          </div>
-
-          <div className="alert-detail-muted">
-            Monitored endpoint address
-          </div>
-
-        </div>
-
-        <div className="alert-detail-card">
-
-          <div className="alert-detail-card-header">
-            <span>PROCESS</span>
-            <Terminal size={17} />
-          </div>
-
-          <div className="alert-detail-main alert-mono">
-            {alert.process}
-          </div>
-
-          <div className="alert-detail-muted">
-            Detected process
-          </div>
-
-        </div>
-
-        <div className="alert-detail-card">
-
-          <div className="alert-detail-card-header">
-            <span>DETECTION TIME</span>
-            <Clock3 size={17} />
-          </div>
-
-          <div className="alert-detail-main">
-            {alert.detectedAt}
-          </div>
-
-          <div className="alert-detail-muted">
-            Security event timestamp
-          </div>
-
-        </div>
-
-      </section>
-
-      {/* =========================================
-          PROCESS ANALYSIS + NETWORK ANALYSIS
-          ========================================= */}
-
-      <section className="alert-analysis-columns">
-
-        <div className="alert-panel">
-
-          <div className="alert-panel-header">
-
-            <div>
-              <div className="alert-panel-title">
-                Process Analysis
-              </div>
-
-              <div className="alert-panel-subtitle">
-                Process execution information
-              </div>
-            </div>
-
-            <Activity size={18} />
-
-          </div>
-
-          <div className="alert-information-list">
-
-            <div className="alert-information-row">
-              <span>Process</span>
-              <strong>{alert.process}</strong>
-            </div>
-
-            <div className="alert-information-row">
-              <span>Parent Process</span>
-              <strong>{alert.parentProcess}</strong>
-            </div>
-
-            <div className="alert-information-row alert-command-row">
-              <span>Command Line</span>
-
-              <code>
-                {alert.commandLine}
-              </code>
-            </div>
-
-          </div>
-
-        </div>
-
-        <div className="alert-panel">
-
-          <div className="alert-panel-header">
-
-            <div>
-              <div className="alert-panel-title">
-                Network Analysis
-              </div>
-
-              <div className="alert-panel-subtitle">
-                Observed network communication
-              </div>
-            </div>
-
-            <Globe size={18} />
-
-          </div>
-
-          <div className="alert-information-list">
-
-            <div className="alert-information-row">
-              <span>Source IP</span>
-              <strong>{alert.sourceIp}</strong>
-            </div>
-
-            <div className="alert-information-row">
-              <span>Destination IP</span>
-              <strong>{alert.destinationIp}</strong>
-            </div>
-
-            <div className="alert-information-row">
-              <span>Protocol</span>
-              <strong>{alert.protocol}</strong>
-            </div>
-
-          </div>
-
-        </div>
-
-      </section>
-
-      {/* =========================================
-          INDICATORS
-          ========================================= */}
-
-      <section className="alert-panel alert-indicators-panel">
-
-        <div className="alert-panel-header">
 
           <div>
-            <div className="alert-panel-title">
-              Indicators & Evidence
-            </div>
-
-            <div className="alert-panel-subtitle">
-              Security artifacts associated with this alert
-            </div>
+            <span>RESPONSE WORKFLOW</span>
+            <h2>Investigation Actions</h2>
           </div>
-
-          <Search size={18} />
-
         </div>
 
-        <div className="alert-indicators-grid">
+        <div className="alert-detail-actions">
 
-          <div className="alert-indicator">
+          <button type="button">
+            <ShieldAlert size={15} />
+            Investigate
+          </button>
 
-            <div className="alert-indicator-icon">
-              <FileWarning size={16} />
-            </div>
+          <button type="button">
+            <CheckCircle2 size={15} />
+            Mark Reviewed
+          </button>
 
-            <div>
-              <span>File</span>
-              <strong>{alert.fileName}</strong>
-            </div>
-
-          </div>
-
-          <div className="alert-indicator">
-
-            <div className="alert-indicator-icon">
-              <Shield size={16} />
-            </div>
-
-            <div>
-              <span>File Hash</span>
-              <strong className="alert-hash">
-                {alert.fileHash}
-              </strong>
-            </div>
-
-          </div>
-
-          <div className="alert-indicator">
-
-            <div className="alert-indicator-icon">
-              <Network size={16} />
-            </div>
-
-            <div>
-              <span>Source</span>
-              <strong>{alert.sourceIp}</strong>
-            </div>
-
-          </div>
-
-          <div className="alert-indicator">
-
-            <div className="alert-indicator-icon">
-              <Globe size={16} />
-            </div>
-
-            <div>
-              <span>Destination</span>
-              <strong>{alert.destinationIp}</strong>
-            </div>
-
-          </div>
-
-        </div>
-
-      </section>
-
-      {/* =========================================
-          INVESTIGATION TIMELINE
-          ========================================= */}
-
-      <section className="alert-panel alert-timeline-panel">
-
-        <div className="alert-panel-header">
-
-          <div>
-            <div className="alert-panel-title">
-              Investigation Timeline
-            </div>
-
-            <div className="alert-panel-subtitle">
-              Sequence of security events associated with
-              this detection
-            </div>
-          </div>
-
-          <Clock3 size={18} />
-
-        </div>
-
-        <div className="alert-timeline">
-
-          <div className="alert-timeline-item">
-
-            <div className="timeline-marker timeline-high" />
-
-            <div className="timeline-content">
-              <strong>
-                Suspicious activity observed
-              </strong>
-
-              <span>
-                Endpoint telemetry identified unusual
-                process behavior.
-              </span>
-            </div>
-
-            <time>
-              09:41:12
-            </time>
-
-          </div>
-
-          <div className="alert-timeline-item">
-
-            <div className="timeline-marker timeline-medium" />
-
-            <div className="timeline-content">
-              <strong>
-                Detection rule triggered
-              </strong>
-
-              <span>
-                Behavioral security rule matched the
-                observed activity.
-              </span>
-            </div>
-
-            <time>
-              09:41:14
-            </time>
-
-          </div>
-
-          <div className="alert-timeline-item">
-
-            <div className="timeline-marker timeline-low" />
-
-            <div className="timeline-content">
-              <strong>
-                Alert generated
-              </strong>
-
-              <span>
-                CyberSentinel created a security alert for
-                analyst investigation.
-              </span>
-            </div>
-
-            <time>
-              09:41:18
-            </time>
-
-          </div>
+          <button type="button">
+            <ExternalLink size={15} />
+            Open Related Context
+          </button>
 
         </div>
 

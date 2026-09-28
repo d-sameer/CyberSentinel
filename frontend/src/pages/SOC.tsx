@@ -1,643 +1,652 @@
+import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import {
   Activity,
   AlertTriangle,
   ArrowUpRight,
-  Bug,
-  CheckCircle2,
   Clock3,
-  Cpu,
   Globe,
-  LockKeyhole,
+  Monitor,
   Network,
-  Server,
   ShieldAlert,
   ShieldCheck,
   Terminal,
-  UserRound,
-  Wifi,
-  Zap,
+  Users,
 } from 'lucide-react'
-import { Link } from 'react-router-dom'
-
-type Severity = 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW' | 'INFO'
 
 type SecurityEvent = {
-  id: string
-  time: string
-  severity: Severity
-  event: string
-  source: string
-  asset: string
-  category: string
+  id: number
+  event_id: string
+  title: string
+  description: string
+  severity: string
   status: string
+  category: string
+  asset: string
+  source: string
+  confidence: number
+  timestamp: string
 }
 
-const events: SecurityEvent[] = [
+const fallbackEvents: SecurityEvent[] = [
   {
-    id: 'EVT-1048',
-    time: '22:41:08',
+    id: 1,
+    event_id: 'EVT-1048',
+    title: 'Malicious outbound connection detected',
+    description:
+      'A suspicious outbound HTTPS connection was detected from an endpoint running PowerShell.',
     severity: 'CRITICAL',
-    event: 'Malicious outbound connection detected',
-    source: 'Network Sensor',
+    status: 'INVESTIGATING',
+    category: 'Network',
     asset: 'WIN-01',
-    category: 'Network',
-    status: 'INVESTIGATING',
-  },
-  {
-    id: 'EVT-1047',
-    time: '22:41:05',
-    severity: 'HIGH',
-    event: 'PowerShell execution policy bypass',
-    source: 'Endpoint Agent',
-    asset: 'WIN-02',
-    category: 'Execution',
-    status: 'ALERTED',
-  },
-  {
-    id: 'EVT-1046',
-    time: '22:40:59',
-    severity: 'MEDIUM',
-    event: 'Multiple authentication failures',
-    source: 'Identity Monitor',
-    asset: 'WIN-02',
-    category: 'Identity',
-    status: 'BLOCKED',
-  },
-  {
-    id: 'EVT-1045',
-    time: '22:40:54',
-    severity: 'HIGH',
-    event: 'Unsigned process execution detected',
-    source: 'EDR Sensor',
-    asset: 'WIN-04',
-    category: 'Process',
-    status: 'INVESTIGATING',
-  },
-  {
-    id: 'EVT-1044',
-    time: '22:40:48',
-    severity: 'INFO',
-    event: 'Endpoint heartbeat received',
-    source: 'Endpoint Agent',
-    asset: 'WIN-03',
-    category: 'System',
-    status: 'NORMAL',
-  },
-  {
-    id: 'EVT-1043',
-    time: '22:40:42',
-    severity: 'HIGH',
-    event: 'Security file deletion attempt',
-    source: 'File Integrity',
-    asset: 'WIN-02',
-    category: 'Defense Evasion',
-    status: 'BLOCKED',
-  },
-  {
-    id: 'EVT-1042',
-    time: '22:40:36',
-    severity: 'MEDIUM',
-    event: 'New administrative group membership',
-    source: 'Identity Monitor',
-    asset: 'WIN-03',
-    category: 'Privilege',
-    status: 'REVIEW',
-  },
-  {
-    id: 'EVT-1041',
-    time: '22:40:31',
-    severity: 'LOW',
-    event: 'New external DNS request observed',
     source: 'Network Sensor',
-    asset: 'LINUX-01',
-    category: 'Network',
+    confidence: 98,
+    timestamp: '2026-09-27T22:41:08',
+  },
+  {
+    id: 2,
+    event_id: 'EVT-1047',
+    title: 'PowerShell execution policy bypass',
+    description:
+      'PowerShell execution was observed with indicators consistent with an execution policy bypass.',
+    severity: 'HIGH',
+    status: 'ALERTED',
+    category: 'Execution',
+    asset: 'WIN-02',
+    source: 'Endpoint Agent',
+    confidence: 94,
+    timestamp: '2026-09-27T22:41:05',
+  },
+  {
+    id: 3,
+    event_id: 'EVT-1046',
+    title: 'Multiple authentication failures',
+    description:
+      'Repeated authentication failures were detected against an RDP service.',
+    severity: 'MEDIUM',
+    status: 'BLOCKED',
+    category: 'Identity',
+    asset: 'WIN-02',
+    source: 'Identity Monitor',
+    confidence: 91,
+    timestamp: '2026-09-27T22:40:59',
+  },
+  {
+    id: 4,
+    event_id: 'EVT-1045',
+    title: 'Unsigned process execution detected',
+    description:
+      'An unsigned executable was observed running from a non-standard location.',
+    severity: 'HIGH',
+    status: 'INVESTIGATING',
+    category: 'Process',
+    asset: 'WIN-04',
+    source: 'EDR Sensor',
+    confidence: 89,
+    timestamp: '2026-09-27T22:40:54',
+  },
+  {
+    id: 5,
+    event_id: 'EVT-1044',
+    title: 'Endpoint heartbeat received',
+    description:
+      'A normal endpoint heartbeat was received from the CyberSentinel agent.',
+    severity: 'INFO',
+    status: 'NORMAL',
+    category: 'System',
+    asset: 'WIN-03',
+    source: 'Endpoint Agent',
+    confidence: 100,
+    timestamp: '2026-09-27T22:40:48',
+  },
+  {
+    id: 6,
+    event_id: 'EVT-1043',
+    title: 'Security file deletion attempt',
+    description:
+      'A protected security-related file deletion attempt was detected and blocked.',
+    severity: 'HIGH',
+    status: 'BLOCKED',
+    category: 'Defense Evasion',
+    asset: 'WIN-02',
+    source: 'File Integrity',
+    confidence: 96,
+    timestamp: '2026-09-27T22:40:42',
+  },
+  {
+    id: 7,
+    event_id: 'EVT-1042',
+    title: 'New administrative group membership',
+    description:
+      'A user account was added to an administrative security group.',
+    severity: 'MEDIUM',
+    status: 'REVIEW',
+    category: 'Privilege',
+    asset: 'WIN-03',
+    source: 'Identity Monitor',
+    confidence: 87,
+    timestamp: '2026-09-27T22:40:36',
+  },
+  {
+    id: 8,
+    event_id: 'EVT-1041',
+    title: 'New external DNS request observed',
+    description:
+      'A new external DNS request was observed from a Linux endpoint.',
+    severity: 'LOW',
     status: 'MONITORED',
+    category: 'Network',
+    asset: 'LINUX-01',
+    source: 'Network Sensor',
+    confidence: 82,
+    timestamp: '2026-09-27T22:40:31',
   },
 ]
 
-const severityClass = (severity: Severity) => {
-  switch (severity) {
-    case 'CRITICAL':
-      return 'soc-severity critical'
-    case 'HIGH':
-      return 'soc-severity high'
-    case 'MEDIUM':
-      return 'soc-severity medium'
-    case 'LOW':
-      return 'soc-severity low'
+function formatTime(timestamp: string) {
+  return new Date(timestamp).toLocaleTimeString('en-IN', {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  })
+}
+
+function severityClass(severity: string) {
+  return `soc-severity soc-severity-${severity.toLowerCase()}`
+}
+
+function statusClass(status: string) {
+  const value = status.toLowerCase()
+
+  if (value === 'normal' || value === 'monitored') {
+    return 'soc-status soc-status-normal'
+  }
+
+  if (value === 'blocked') {
+    return 'soc-status soc-status-blocked'
+  }
+
+  if (value === 'investigating') {
+    return 'soc-status soc-status-investigating'
+  }
+
+  if (value === 'alerted') {
+    return 'soc-status soc-status-alerted'
+  }
+
+  return 'soc-status'
+}
+
+function categoryIcon(category: string) {
+  switch (category) {
+    case 'Network':
+      return <Network size={15} />
+
+    case 'Identity':
+    case 'Privilege':
+      return <Users size={15} />
+
+    case 'Process':
+    case 'Execution':
+      return <Terminal size={15} />
+
+    case 'Defense Evasion':
+      return <ShieldAlert size={15} />
+
+    case 'System':
+      return <Monitor size={15} />
+
     default:
-      return 'soc-severity info'
+      return <Activity size={15} />
   }
 }
 
-const statusClass = (status: string) => {
-  switch (status) {
-    case 'INVESTIGATING':
-      return 'soc-status investigating'
-    case 'ALERTED':
-      return 'soc-status alerted'
-    case 'BLOCKED':
-      return 'soc-status blocked'
-    case 'REVIEW':
-      return 'soc-status review'
-    case 'NORMAL':
-      return 'soc-status normal'
-    default:
-      return 'soc-status monitored'
-  }
-}
+function SOC() {
+  const [events, setEvents] = useState<SecurityEvent[]>(fallbackEvents)
+  const [loading, setLoading] = useState(true)
+  const [apiOnline, setApiOnline] = useState(false)
 
-function MetricCard({
-  icon,
-  label,
-  value,
-  detail,
-  tone,
-}: {
-  icon: React.ReactNode
-  label: string
-  value: string
-  detail: string
-  tone: string
-}) {
-  return (
-    <div className={`soc-metric-card ${tone}`}>
-      <div className="soc-metric-top">
-        <div className="soc-metric-icon">{icon}</div>
-        <span className="soc-live-dot" />
-      </div>
+  useEffect(() => {
+    const loadEvents = async () => {
+      try {
+        const response = await fetch(
+          'http://127.0.0.1:8000/api/events',
+        )
 
-      <div className="soc-metric-value">{value}</div>
-      <div className="soc-metric-label">{label}</div>
-      <div className="soc-metric-detail">{detail}</div>
-    </div>
-  )
-}
+        if (!response.ok) {
+          throw new Error('API request failed')
+        }
 
-function ActivityBar({
-  label,
-  value,
-  width,
-}: {
-  label: string
-  value: string
-  width: string
-}) {
-  return (
-    <div className="soc-activity-row">
-      <div className="soc-activity-label">
-        <span>{label}</span>
-        <strong>{value}</strong>
-      </div>
+        const data: SecurityEvent[] = await response.json()
 
-      <div className="soc-bar-track">
-        <div className="soc-bar-fill" style={{ width }} />
-      </div>
-    </div>
-  )
-}
+        setEvents(data)
+        setApiOnline(true)
+      } catch {
+        setEvents(fallbackEvents)
+        setApiOnline(false)
+      } finally {
+        setLoading(false)
+      }
+    }
 
-export default function SOC() {
+    loadEvents()
+  }, [])
+
+  const criticalCount = events.filter(
+    (event) => event.severity === 'CRITICAL',
+  ).length
+
+  const highCount = events.filter(
+    (event) => event.severity === 'HIGH',
+  ).length
+
+  const mediumCount = events.filter(
+    (event) => event.severity === 'MEDIUM',
+  ).length
+
+  const activeThreats = events.filter(
+    (event) =>
+      event.status === 'INVESTIGATING' ||
+      event.status === 'ALERTED',
+  ).length
+
   return (
     <div className="soc-page">
-      <div className="soc-page-header">
+
+      {/* HEADER */}
+      <div className="soc-header">
         <div>
           <div className="soc-eyebrow">
-            <span className="soc-live-indicator" />
             SECURITY OPERATIONS CENTER
           </div>
 
-          <h1>SOC Command Center</h1>
+          <h1 className="soc-title">
+            SOC Command Center
+          </h1>
 
-          <p>
-            Real-time security visibility across endpoints, network activity,
-            identity events, threats, and active investigations.
+          <p className="soc-subtitle">
+            Centralized security monitoring, detection and response.
           </p>
         </div>
 
         <div className="soc-header-status">
-          <div className="soc-status-card">
-            <span className="soc-status-dot" />
+          <span
+            className={
+              apiOnline
+                ? 'soc-live-indicator'
+                : 'soc-live-indicator soc-live-offline'
+            }
+          />
 
-            <div>
-              <strong>SOC ONLINE</strong>
-              <span>All monitoring services operational</span>
-            </div>
-          </div>
-
-          <div className="soc-time-card">
-            <Clock3 size={15} />
-            <span>Last updated 22:41:08</span>
-          </div>
+          <span>
+            {apiOnline ? 'API CONNECTED' : 'DEMO DATA'}
+          </span>
         </div>
       </div>
 
-      <div className="soc-metrics-grid">
-        <MetricCard
-          icon={<ShieldAlert size={21} />}
-          label="Active Threats"
-          value="12"
-          detail="+3 in the last hour"
-          tone="danger"
-        />
+      {/* KPI CARDS */}
+      <div className="soc-kpi-grid">
 
-        <MetricCard
-          icon={<AlertTriangle size={21} />}
-          label="Critical Alerts"
-          value="3"
-          detail="2 require immediate review"
-          tone="critical"
-        />
+        <div className="soc-kpi-card">
+          <div className="soc-kpi-icon soc-kpi-red">
+            <ShieldAlert size={18} />
+          </div>
 
-        <MetricCard
-          icon={<Server size={21} />}
-          label="Endpoints at Risk"
-          value="7"
-          detail="3 critical systems"
-          tone="warning"
-        />
+          <div>
+            <div className="soc-kpi-label">
+              Active Threats
+            </div>
 
-        <MetricCard
-          icon={<Activity size={21} />}
-          label="Events / Sec"
-          value="184"
-          detail="+12.6% from baseline"
-          tone="cyan"
-        />
+            <div className="soc-kpi-value">
+              {activeThreats}
+            </div>
+          </div>
+        </div>
 
-        <MetricCard
-          icon={<Network size={21} />}
-          label="Network Connections"
-          value="1,284"
-          detail="18 suspicious"
-          tone="blue"
-        />
+        <div className="soc-kpi-card">
+          <div className="soc-kpi-icon soc-kpi-red">
+            <AlertTriangle size={18} />
+          </div>
 
-        <MetricCard
-          icon={<Zap size={21} />}
-          label="Open Incidents"
-          value="5"
-          detail="2 critical cases"
-          tone="purple"
-        />
+          <div>
+            <div className="soc-kpi-label">
+              Critical Alerts
+            </div>
+
+            <div className="soc-kpi-value">
+              {criticalCount}
+            </div>
+          </div>
+        </div>
+
+        <div className="soc-kpi-card">
+          <div className="soc-kpi-icon soc-kpi-orange">
+            <ShieldAlert size={18} />
+          </div>
+
+          <div>
+            <div className="soc-kpi-label">
+              High Severity
+            </div>
+
+            <div className="soc-kpi-value">
+              {highCount}
+            </div>
+          </div>
+        </div>
+
+        <div className="soc-kpi-card">
+          <div className="soc-kpi-icon soc-kpi-yellow">
+            <Activity size={18} />
+          </div>
+
+          <div>
+            <div className="soc-kpi-label">
+              Medium Severity
+            </div>
+
+            <div className="soc-kpi-value">
+              {mediumCount}
+            </div>
+          </div>
+        </div>
+
       </div>
 
+      {/* MAIN GRID */}
       <div className="soc-main-grid">
-        <section className="soc-panel soc-event-panel">
+
+        {/* EVENT STREAM */}
+        <section className="soc-panel">
+
           <div className="soc-panel-header">
+
             <div>
-              <div className="soc-panel-kicker">
-                <Activity size={14} />
-                LIVE TELEMETRY
-              </div>
+              <h2 className="soc-panel-title">
+                Security Event Stream
+              </h2>
 
-              <h2>Security Event Stream</h2>
+              <p className="soc-panel-subtitle">
+                Live events received from CyberSentinel sensors
+              </p>
             </div>
 
-            <div className="soc-stream-status">
-              <span />
-              STREAMING
+            <div className="soc-panel-meta">
+              <Clock3 size={14} />
+
+              {loading
+                ? 'Loading...'
+                : `${events.length} events`}
             </div>
+
           </div>
 
           <div className="soc-event-list">
+
             {events.map((event) => (
-              <div className="soc-event-row" key={event.id}>
-                <div className="soc-event-time">{event.time}</div>
+              <div
+                className="soc-event-row"
+                key={event.event_id}
+              >
 
-                <div className={severityClass(event.severity)}>
-                  {event.severity}
+                <div className="soc-event-category">
+                  {categoryIcon(event.category)}
                 </div>
 
-                <div className="soc-event-icon">
-                  {event.category === 'Network' && <Globe size={16} />}
-                  {event.category === 'Execution' && <Terminal size={16} />}
-                  {event.category === 'Identity' && (
-                    <UserRound size={16} />
-                  )}
-                  {event.category === 'Process' && <Cpu size={16} />}
-                  {event.category === 'System' && <Server size={16} />}
-                  {event.category === 'Defense Evasion' && (
-                    <ShieldAlert size={16} />
-                  )}
-                  {event.category === 'Privilege' && (
-                    <LockKeyhole size={16} />
-                  )}
+                <div className="soc-event-main">
+
+                  <div className="soc-event-topline">
+
+                    <span className="soc-event-id">
+                      {event.event_id}
+                    </span>
+
+                    <span className={severityClass(event.severity)}>
+                      {event.severity}
+                    </span>
+
+                  </div>
+
+                  <div className="soc-event-name">
+                    {event.title}
+                  </div>
+
+                  <div className="soc-event-meta">
+                    <span>
+                      {event.source}
+                    </span>
+
+                    <span>•</span>
+
+                    <span>
+                      {event.asset}
+                    </span>
+
+                    <span>•</span>
+
+                    <span>
+                      {event.category}
+                    </span>
+
+                    <span>•</span>
+
+                    <span>
+                      {formatTime(event.timestamp)}
+                    </span>
+                  </div>
+
                 </div>
 
-                <div className="soc-event-content">
-                  <strong>{event.event}</strong>
+                <div className="soc-event-right">
 
-                  <span>
-                    {event.source} • {event.asset}
+                  <span className={statusClass(event.status)}>
+                    {event.status}
                   </span>
+
+                  <Link
+                    to={`/soc/events/${event.event_id}`}
+                    className="soc-event-action"
+                    title="View event"
+                  >
+                    <ArrowUpRight size={16} />
+                  </Link>
+
                 </div>
 
-                <div className={statusClass(event.status)}>
-                  {event.status}
-                </div>
-
-                <Link
-                  to={`/soc/events/${event.id}`}
-                  className="soc-event-action"
-                  title="View event"
-                >
-                  <ArrowUpRight size={16} />
-                </Link>
               </div>
             ))}
+
           </div>
 
-          <div className="soc-panel-footer">
-            <span>Showing latest 8 security events</span>
-            <button>View Event Stream →</button>
-          </div>
         </section>
 
-        <section className="soc-panel soc-posture-panel">
-          <div className="soc-panel-header">
-            <div>
-              <div className="soc-panel-kicker">
-                <ShieldCheck size={14} />
-                SECURITY POSTURE
-              </div>
+        {/* RIGHT SIDE */}
+        <div className="soc-side-column">
 
-              <h2>Current Risk</h2>
-            </div>
-          </div>
+          {/* SECURITY POSTURE */}
+          <section className="soc-panel">
 
-          <div className="soc-risk-score">
-            <div className="soc-score-ring">
+            <div className="soc-panel-header">
               <div>
-                <strong>78</strong>
-                <span>/100</span>
+                <h2 className="soc-panel-title">
+                  Security Posture
+                </h2>
+
+                <p className="soc-panel-subtitle">
+                  Current environment risk
+                </p>
               </div>
             </div>
 
-            <div className="soc-score-info">
-              <strong>Elevated Risk</strong>
+            <div className="soc-posture">
 
-              <span>
-                Security posture requires active monitoring and investigation.
-              </span>
-            </div>
-          </div>
+              <div className="soc-posture-score">
+                <div className="soc-posture-number">
+                  78
+                </div>
 
-          <div className="soc-posture-list">
-            <div>
-              <span>
-                <CheckCircle2 size={15} />
-                Endpoint Coverage
-              </span>
-
-              <strong>96%</strong>
-            </div>
-
-            <div>
-              <span>
-                <CheckCircle2 size={15} />
-                Detection Coverage
-              </span>
-
-              <strong>91%</strong>
-            </div>
-
-            <div>
-              <span>
-                <AlertTriangle size={15} />
-                Vulnerability Exposure
-              </span>
-
-              <strong>68%</strong>
-            </div>
-
-            <div>
-              <span>
-                <AlertTriangle size={15} />
-                Identity Risk
-              </span>
-
-              <strong>74%</strong>
-            </div>
-          </div>
-        </section>
-      </div>
-
-      <div className="soc-secondary-grid">
-        <section className="soc-panel">
-          <div className="soc-panel-header">
-            <div>
-              <div className="soc-panel-kicker">
-                <Network size={14} />
-                ACTIVITY
+                <div className="soc-posture-total">
+                  /100
+                </div>
               </div>
 
-              <h2>Threat Activity</h2>
+              <div className="soc-posture-status">
+                ELEVATED RISK
+              </div>
+
+              <div className="soc-posture-bar">
+                <div
+                  className="soc-posture-fill"
+                  style={{ width: '78%' }}
+                />
+              </div>
+
+              <div className="soc-posture-grid">
+
+                <div>
+                  <span>Endpoint Coverage</span>
+                  <strong>96%</strong>
+                </div>
+
+                <div>
+                  <span>Detection Coverage</span>
+                  <strong>91%</strong>
+                </div>
+
+                <div>
+                  <span>Vulnerability Exposure</span>
+                  <strong>68%</strong>
+                </div>
+
+                <div>
+                  <span>Identity Risk</span>
+                  <strong>74%</strong>
+                </div>
+
+              </div>
+
             </div>
 
-            <select className="soc-select" defaultValue="1h">
-              <option value="15m">Last 15 min</option>
-              <option value="1h">Last 1 hour</option>
-              <option value="24h">Last 24 hours</option>
-            </select>
-          </div>
+          </section>
 
-          <div className="soc-activity-chart">
-            <div className="soc-chart-grid">
-              <span />
-              <span />
-              <span />
-              <span />
-              <span />
+          {/* THREAT CATEGORIES */}
+          <section className="soc-panel">
+
+            <div className="soc-panel-header">
+
+              <div>
+                <h2 className="soc-panel-title">
+                  Threat Categories
+                </h2>
+
+                <p className="soc-panel-subtitle">
+                  Events by detection domain
+                </p>
+              </div>
+
             </div>
 
-            <div className="soc-chart-bars">
-              {[35, 48, 42, 68, 52, 76, 61, 88, 72, 94, 79, 86].map(
-                (height, index) => (
-                  <div className="soc-chart-column" key={index}>
-                    <div
-                      className="soc-chart-bar"
-                      style={{ height: `${height}%` }}
-                    />
+            <div className="soc-category-list">
 
-                    <span>{index + 1}</span>
+              {[
+                ['Network', 34, <Globe size={15} />],
+                ['Execution', 27, <Terminal size={15} />],
+                ['Identity', 18, <Users size={15} />],
+                ['Process', 12, <Monitor size={15} />],
+                ['Defense Evasion', 9, <ShieldAlert size={15} />],
+              ].map(([name, value, icon]) => (
+                <div
+                  className="soc-category-row"
+                  key={String(name)}
+                >
+
+                  <div className="soc-category-name">
+                    {icon}
+                    <span>{String(name)}</span>
                   </div>
-                ),
-              )}
+
+                  <div className="soc-category-bar">
+                    <div
+                      className="soc-category-fill"
+                      style={{
+                        width: `${Number(value) * 2}%`,
+                      }}
+                    />
+                  </div>
+
+                  <span className="soc-category-value">
+                    {String(value)}
+                  </span>
+
+                </div>
+              ))}
+
             </div>
-          </div>
 
-          <div className="soc-chart-legend">
-            <span>
-              <i className="critical-dot" />
-              Critical
-            </span>
+          </section>
 
-            <span>
-              <i className="high-dot" />
-              High
-            </span>
+          {/* ENDPOINT HEALTH */}
+          <section className="soc-panel">
 
-            <span>
-              <i className="medium-dot" />
-              Medium
-            </span>
+            <div className="soc-panel-header">
 
-            <span>
-              <i className="info-dot" />
-              Informational
-            </span>
-          </div>
-        </section>
+              <div>
+                <h2 className="soc-panel-title">
+                  Endpoint Health
+                </h2>
 
-        <section className="soc-panel">
-          <div className="soc-panel-header">
-            <div>
-              <div className="soc-panel-kicker">
-                <ShieldAlert size={14} />
-                THREAT CATEGORIES
+                <p className="soc-panel-subtitle">
+                  Current endpoint status
+                </p>
               </div>
 
-              <h2>Detection Distribution</h2>
+              <Monitor size={15} />
+
             </div>
-          </div>
 
-          <div className="soc-activity-list">
-            <ActivityBar
-              label="Credential Attacks"
-              value="31"
-              width="88%"
-            />
+            <div className="soc-endpoint-health">
 
-            <ActivityBar
-              label="Suspicious Execution"
-              value="24"
-              width="72%"
-            />
+              <div>
+                <strong>42</strong>
+                <span>Healthy</span>
+              </div>
 
-            <ActivityBar
-              label="Network Anomalies"
-              value="19"
-              width="58%"
-            />
+              <div>
+                <strong>7</strong>
+                <span>At Risk</span>
+              </div>
 
-            <ActivityBar
-              label="Privilege Escalation"
-              value="14"
-              width="43%"
-            />
+              <div>
+                <strong>3</strong>
+                <span>Offline</span>
+              </div>
 
-            <ActivityBar
-              label="Defense Evasion"
-              value="9"
-              width="28%"
-            />
+            </div>
 
-            <ActivityBar
-              label="Malware Activity"
-              value="7"
-              width="21%"
-            />
-          </div>
-        </section>
+          </section>
+
+        </div>
+
       </div>
 
-      <div className="soc-bottom-grid">
-        <section className="soc-panel">
-          <div className="soc-panel-header">
-            <div>
-              <div className="soc-panel-kicker">
-                <Server size={14} />
-                ATTACK SURFACE
-              </div>
+      {/* FOOTER */}
+      <div className="soc-footer">
 
-              <h2>Endpoint Health</h2>
-            </div>
+        <div>
+          <ShieldCheck size={14} />
+          CyberSentinel Security Operations Platform
+        </div>
 
-            <span className="soc-panel-count">24 endpoints</span>
-          </div>
+        <div>
+          <Activity size={14} />
+          Event telemetry: {apiOnline ? 'API' : 'LOCAL FALLBACK'}
+        </div>
 
-          <div className="soc-health-grid">
-            <div className="soc-health-card healthy">
-              <CheckCircle2 size={18} />
-              <strong>17</strong>
-              <span>Healthy</span>
-            </div>
-
-            <div className="soc-health-card monitored">
-              <Wifi size={18} />
-              <strong>4</strong>
-              <span>Monitored</span>
-            </div>
-
-            <div className="soc-health-card warning">
-              <AlertTriangle size={18} />
-              <strong>2</strong>
-              <span>At Risk</span>
-            </div>
-
-            <div className="soc-health-card critical">
-              <ShieldAlert size={18} />
-              <strong>1</strong>
-              <span>Critical</span>
-            </div>
-          </div>
-        </section>
-
-        <section className="soc-panel">
-          <div className="soc-panel-header">
-            <div>
-              <div className="soc-panel-kicker">
-                <UserRound size={14} />
-                ANALYST ACTIVITY
-              </div>
-
-              <h2>SOC Queue</h2>
-            </div>
-          </div>
-
-          <div className="soc-queue-list">
-            <div className="soc-queue-item">
-              <div className="soc-queue-icon critical">
-                <AlertTriangle size={16} />
-              </div>
-
-              <div>
-                <strong>3 critical alerts</strong>
-                <span>Awaiting analyst review</span>
-              </div>
-
-              <b>03</b>
-            </div>
-
-            <div className="soc-queue-item">
-              <div className="soc-queue-icon high">
-                <ShieldAlert size={16} />
-              </div>
-
-              <div>
-                <strong>5 active incidents</strong>
-                <span>Investigation in progress</span>
-              </div>
-
-              <b>05</b>
-            </div>
-
-            <div className="soc-queue-item">
-              <div className="soc-queue-icon medium">
-                <Bug size={16} />
-              </div>
-
-              <div>
-                <strong>7 vulnerabilities</strong>
-                <span>Require remediation</span>
-              </div>
-
-              <b>07</b>
-            </div>
-          </div>
-        </section>
       </div>
+
     </div>
   )
 }
+
+export default SOC

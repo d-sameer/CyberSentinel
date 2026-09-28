@@ -1,394 +1,534 @@
-import { useMemo, useState } from 'react'
-
+import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import {
   AlertTriangle,
-  ChevronDown,
+  ArrowUpRight,
+  CheckCircle2,
   Clock3,
+  RefreshCw,
   Search,
   ShieldAlert,
   ShieldCheck,
 } from 'lucide-react'
 
-import { Link } from 'react-router-dom'
-
-type AlertSeverity = 'HIGH' | 'MEDIUM' | 'LOW'
-
-type AlertStatus = 'OPEN' | 'INVESTIGATING' | 'RESOLVED'
-
-type SecurityAlert = {
-  id: string
+type Alert = {
+  id: number
+  alert_id: string
   title: string
   description: string
-  severity: AlertSeverity
-  status: AlertStatus
-  endpoint: string
-  process: string
-  detectedAt: string
+  severity: string
+  status: string
+  category: string
+  source: string
+  asset: string
+  rule_id: string
+  confidence: number
+  created_at: string
 }
 
-const alerts: SecurityAlert[] = [
+const fallbackAlerts: Alert[] = [
   {
-    id: 'ALERT-001',
-    title: 'Suspicious Process Detected',
+    id: 1,
+    alert_id: 'ALT-018',
+    title: 'Malicious outbound connection detected',
     description:
-      'Unknown executable activity triggered a behavioral detection rule.',
-    severity: 'HIGH',
-    status: 'OPEN',
-    endpoint: 'WIN-01',
-    process: 'powershell.exe',
-    detectedAt: '2 min ago',
-  },
-  {
-    id: 'ALERT-002',
-    title: 'Outbound Connection Detected',
-    description:
-      'An unexpected outbound connection was observed from a monitored endpoint.',
-    severity: 'MEDIUM',
+      'Suspicious outbound HTTPS communication was detected from WIN-01 and correlated with PowerShell activity.',
+    severity: 'CRITICAL',
     status: 'INVESTIGATING',
-    endpoint: 'KALI-01',
-    process: 'curl',
-    detectedAt: '7 min ago',
+    category: 'Network',
+    source: 'Network Sensor',
+    asset: 'WIN-01',
+    rule_id: 'DET-005',
+    confidence: 98,
+    created_at: '2026-09-27T22:41:08',
   },
   {
-    id: 'ALERT-003',
-    title: 'File Integrity Change',
+    id: 2,
+    alert_id: 'ALT-021',
+    title: 'PowerShell execution policy bypass',
     description:
-      'A protected system file was modified on a monitored endpoint.',
-    severity: 'LOW',
-    status: 'OPEN',
-    endpoint: 'LINUX-01',
-    process: 'systemd',
-    detectedAt: '14 min ago',
+      'PowerShell execution with policy bypass indicators was detected on WIN-02.',
+    severity: 'HIGH',
+    status: 'ALERTED',
+    category: 'Execution',
+    source: 'Endpoint Agent',
+    asset: 'WIN-02',
+    rule_id: 'DET-001',
+    confidence: 94,
+    created_at: '2026-09-27T22:41:05',
   },
   {
-    id: 'ALERT-004',
-    title: 'Authentication Activity',
+    id: 3,
+    alert_id: 'ALT-007',
+    title: 'Multiple authentication failures',
     description:
-      'New authentication activity was observed on an endpoint.',
+      'Repeated failed RDP authentication attempts were detected against WIN-02.',
     severity: 'MEDIUM',
-    status: 'RESOLVED',
-    endpoint: 'WIN-02',
-    process: 'winlogon.exe',
-    detectedAt: '31 min ago',
+    status: 'BLOCKED',
+    category: 'Identity',
+    source: 'Identity Monitor',
+    asset: 'WIN-02',
+    rule_id: 'DET-003',
+    confidence: 91,
+    created_at: '2026-09-27T22:40:59',
+  },
+  {
+    id: 4,
+    alert_id: 'ALT-031',
+    title: 'Unsigned process execution detected',
+    description:
+      'An unsigned executable was observed running from a non-standard location on WIN-04.',
+    severity: 'HIGH',
+    status: 'INVESTIGATING',
+    category: 'Process',
+    source: 'EDR Sensor',
+    asset: 'WIN-04',
+    rule_id: 'DET-008',
+    confidence: 89,
+    created_at: '2026-09-27T22:40:54',
+  },
+  {
+    id: 5,
+    alert_id: 'ALT-034',
+    title: 'Security file deletion attempt',
+    description:
+      'A protected security-related file deletion attempt was detected and blocked.',
+    severity: 'HIGH',
+    status: 'BLOCKED',
+    category: 'Defense Evasion',
+    source: 'File Integrity',
+    asset: 'WIN-02',
+    rule_id: 'DET-011',
+    confidence: 96,
+    created_at: '2026-09-27T22:40:42',
+  },
+  {
+    id: 6,
+    alert_id: 'ALT-037',
+    title: 'New administrative group membership',
+    description:
+      'A user account was added to an administrative security group on WIN-03.',
+    severity: 'MEDIUM',
+    status: 'REVIEW',
+    category: 'Privilege',
+    source: 'Identity Monitor',
+    asset: 'WIN-03',
+    rule_id: 'DET-014',
+    confidence: 87,
+    created_at: '2026-09-27T22:40:36',
   },
 ]
 
+function formatTime(value: string) {
+  return new Date(value).toLocaleTimeString('en-IN', {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  })
+}
+
+function severityClass(severity: string) {
+  return `alerts-severity alerts-severity-${severity.toLowerCase()}`
+}
+
+function statusClass(status: string) {
+  const value = status.toLowerCase()
+
+  if (value === 'investigating') {
+    return 'alerts-status alerts-status-investigating'
+  }
+
+  if (value === 'alerted') {
+    return 'alerts-status alerts-status-alerted'
+  }
+
+  if (value === 'blocked') {
+    return 'alerts-status alerts-status-blocked'
+  }
+
+  return 'alerts-status alerts-status-review'
+}
+
 function Alerts() {
-  const [searchTerm, setSearchTerm] = useState('')
+  const [alerts, setAlerts] = useState<Alert[]>(fallbackAlerts)
+  const [loading, setLoading] = useState(true)
+  const [apiOnline, setApiOnline] = useState(false)
+  const [search, setSearch] = useState('')
   const [severityFilter, setSeverityFilter] = useState('ALL')
   const [statusFilter, setStatusFilter] = useState('ALL')
 
-  const highAlerts = alerts.filter(
+  const loadAlerts = async () => {
+    setLoading(true)
+
+    try {
+      const response = await fetch(
+        'http://127.0.0.1:8000/api/alerts',
+      )
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch alerts')
+      }
+
+      const data: Alert[] = await response.json()
+
+      setAlerts(data)
+      setApiOnline(true)
+    } catch {
+      setAlerts(fallbackAlerts)
+      setApiOnline(false)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    loadAlerts()
+  }, [])
+
+  const filteredAlerts = alerts.filter((alert) => {
+    const query = search.toLowerCase().trim()
+
+    const matchesSearch =
+      !query ||
+      alert.alert_id.toLowerCase().includes(query) ||
+      alert.title.toLowerCase().includes(query) ||
+      alert.asset.toLowerCase().includes(query) ||
+      alert.category.toLowerCase().includes(query) ||
+      alert.source.toLowerCase().includes(query)
+
+    const matchesSeverity =
+      severityFilter === 'ALL' ||
+      alert.severity === severityFilter
+
+    const matchesStatus =
+      statusFilter === 'ALL' ||
+      alert.status === statusFilter
+
+    return (
+      matchesSearch &&
+      matchesSeverity &&
+      matchesStatus
+    )
+  })
+
+  const criticalCount = alerts.filter(
+    (alert) => alert.severity === 'CRITICAL',
+  ).length
+
+  const highCount = alerts.filter(
     (alert) => alert.severity === 'HIGH',
   ).length
 
-  const mediumAlerts = alerts.filter(
-    (alert) => alert.severity === 'MEDIUM',
+  const investigatingCount = alerts.filter(
+    (alert) => alert.status === 'INVESTIGATING',
   ).length
 
-  const lowAlerts = alerts.filter(
-    (alert) => alert.severity === 'LOW',
+  const blockedCount = alerts.filter(
+    (alert) => alert.status === 'BLOCKED',
   ).length
-
-  const activeAlerts = alerts.filter(
-    (alert) => alert.status !== 'RESOLVED',
-  ).length
-
-  const filteredAlerts = useMemo(() => {
-    const search = searchTerm.toLowerCase()
-
-    return alerts.filter((alert) => {
-      const matchesSearch =
-        alert.id.toLowerCase().includes(search) ||
-        alert.title.toLowerCase().includes(search) ||
-        alert.endpoint.toLowerCase().includes(search) ||
-        alert.process.toLowerCase().includes(search)
-
-      const matchesSeverity =
-        severityFilter === 'ALL' ||
-        alert.severity === severityFilter
-
-      const matchesStatus =
-        statusFilter === 'ALL' ||
-        alert.status === statusFilter
-
-      return (
-        matchesSearch &&
-        matchesSeverity &&
-        matchesStatus
-      )
-    })
-  }, [searchTerm, severityFilter, statusFilter])
 
   return (
-    <div className="page-container">
+    <div className="alerts-api-page">
 
-      {/* =========================================
-          PAGE HEADER
-          ========================================= */}
+      {/* HEADER */}
+      <div className="alerts-api-header">
 
-      <div className="page-header">
         <div>
-          <div className="page-eyebrow">
+          <div className="alerts-api-eyebrow">
             SECURITY MONITORING
           </div>
 
-          <h1>Alerts</h1>
+          <h1 className="alerts-api-title">
+            Alert Center
+          </h1>
 
-          <p>
-            Detect, triage, and investigate security events
-            across monitored endpoints.
+          <p className="alerts-api-subtitle">
+            Investigate, filter and track security alerts across the environment.
           </p>
         </div>
 
-        <div className="page-status page-alert-status">
-          <span />
-          {activeAlerts} ACTIVE ALERTS
+        <div className="alerts-api-header-actions">
+
+          <div
+            className={
+              apiOnline
+                ? 'alerts-api-connection'
+                : 'alerts-api-connection alerts-api-connection-offline'
+            }
+          >
+            <span />
+            {apiOnline ? 'API CONNECTED' : 'DEMO DATA'}
+          </div>
+
+          <button
+            className="alerts-api-refresh"
+            type="button"
+            onClick={loadAlerts}
+            disabled={loading}
+          >
+            <RefreshCw
+              size={14}
+              className={loading ? 'alerts-api-spin' : ''}
+            />
+            Refresh
+          </button>
+
         </div>
+
       </div>
 
-      {/* =========================================
-          ALERT SUMMARY
-          ========================================= */}
+      {/* METRICS */}
+      <div className="alerts-api-metrics">
 
-      <section className="alert-summary-grid">
-
-        <div className="alert-summary-card">
-          <div className="alert-summary-label">
-            ACTIVE ALERTS
+        <div className="alerts-api-metric">
+          <div className="alerts-api-metric-icon critical">
+            <ShieldAlert size={18} />
           </div>
 
-          <div className="alert-summary-value">
-            {String(activeAlerts).padStart(2, '0')}
-          </div>
-
-          <div className="alert-summary-description">
-            Require analyst review
+          <div>
+            <span>Critical Alerts</span>
+            <strong>{criticalCount}</strong>
           </div>
         </div>
 
-        <div className="alert-summary-card alert-summary-high">
-          <div className="alert-summary-label">
-            HIGH
+        <div className="alerts-api-metric">
+          <div className="alerts-api-metric-icon high">
+            <AlertTriangle size={18} />
           </div>
 
-          <div className="alert-summary-value">
-            {String(highAlerts).padStart(2, '0')}
-          </div>
-
-          <div className="alert-summary-description">
-            Critical attention
+          <div>
+            <span>High Severity</span>
+            <strong>{highCount}</strong>
           </div>
         </div>
 
-        <div className="alert-summary-card alert-summary-medium">
-          <div className="alert-summary-label">
-            MEDIUM
+        <div className="alerts-api-metric">
+          <div className="alerts-api-metric-icon investigating">
+            <Clock3 size={18} />
           </div>
 
-          <div className="alert-summary-value">
-            {String(mediumAlerts).padStart(2, '0')}
-          </div>
-
-          <div className="alert-summary-description">
-            Investigation required
+          <div>
+            <span>Investigating</span>
+            <strong>{investigatingCount}</strong>
           </div>
         </div>
 
-        <div className="alert-summary-card alert-summary-low">
-          <div className="alert-summary-label">
-            LOW
+        <div className="alerts-api-metric">
+          <div className="alerts-api-metric-icon blocked">
+            <ShieldCheck size={18} />
           </div>
 
-          <div className="alert-summary-value">
-            {String(lowAlerts).padStart(2, '0')}
-          </div>
-
-          <div className="alert-summary-description">
-            Lower priority events
+          <div>
+            <span>Blocked</span>
+            <strong>{blockedCount}</strong>
           </div>
         </div>
 
-      </section>
+      </div>
 
-      {/* =========================================
-          FILTER BAR
-          ========================================= */}
+      {/* FILTER BAR */}
+      <div className="alerts-api-toolbar">
 
-      <div className="alert-toolbar">
-
-        <div className="page-search">
-          <Search size={16} />
+        <div className="alerts-api-search">
+          <Search size={15} />
 
           <input
             type="text"
-            placeholder="Search alert, endpoint or process..."
-            value={searchTerm}
+            placeholder="Search alerts, assets, categories..."
+            value={search}
             onChange={(event) =>
-              setSearchTerm(event.target.value)
+              setSearch(event.target.value)
             }
           />
         </div>
 
-        <div className="alert-filter">
+        <select
+          value={severityFilter}
+          onChange={(event) =>
+            setSeverityFilter(event.target.value)
+          }
+        >
+          <option value="ALL">All Severities</option>
+          <option value="CRITICAL">Critical</option>
+          <option value="HIGH">High</option>
+          <option value="MEDIUM">Medium</option>
+          <option value="LOW">Low</option>
+        </select>
 
-          <ShieldAlert size={15} />
-
-          <select
-            value={severityFilter}
-            onChange={(event) =>
-              setSeverityFilter(event.target.value)
-            }
-          >
-            <option value="ALL">All Severity</option>
-            <option value="HIGH">High</option>
-            <option value="MEDIUM">Medium</option>
-            <option value="LOW">Low</option>
-          </select>
-
-        </div>
-
-        <div className="alert-filter">
-
-          <ChevronDown size={15} />
-
-          <select
-            value={statusFilter}
-            onChange={(event) =>
-              setStatusFilter(event.target.value)
-            }
-          >
-            <option value="ALL">All Status</option>
-            <option value="OPEN">Open</option>
-            <option value="INVESTIGATING">
-              Investigating
-            </option>
-            <option value="RESOLVED">Resolved</option>
-          </select>
-
-        </div>
+        <select
+          value={statusFilter}
+          onChange={(event) =>
+            setStatusFilter(event.target.value)
+          }
+        >
+          <option value="ALL">All Statuses</option>
+          <option value="INVESTIGATING">Investigating</option>
+          <option value="ALERTED">Alerted</option>
+          <option value="BLOCKED">Blocked</option>
+          <option value="REVIEW">Review</option>
+        </select>
 
       </div>
 
-      {/* =========================================
-          RESULT COUNT
-          ========================================= */}
+      {/* TABLE */}
+      <section className="alerts-api-panel">
 
-      <div className="alert-result-count">
-        Showing {filteredAlerts.length} of {alerts.length}{' '}
-        alerts
-      </div>
+        <div className="alerts-api-panel-header">
 
-      {/* =========================================
-          ALERT LIST
-          ========================================= */}
-
-      <div className="alert-list">
-
-        {filteredAlerts.length > 0 ? (
-
-          filteredAlerts.map((alert) => (
-
-            <Link
-              key={alert.id}
-              to={`/alerts/${alert.id}`}
-              className="alert-list-item"
-            >
-
-              {/* SEVERITY ICON */}
-
-              <div
-                className={`alert-list-icon alert-list-${alert.severity.toLowerCase()}`}
-              >
-                <AlertTriangle size={19} />
-              </div>
-
-              {/* MAIN CONTENT */}
-
-              <div className="alert-list-content">
-
-                <div className="alert-list-title-row">
-
-                  <h3>
-                    {alert.title}
-                  </h3>
-
-                  <span
-                    className={`alert-list-severity alert-list-severity-${alert.severity.toLowerCase()}`}
-                  >
-                    {alert.severity}
-                  </span>
-
-                </div>
-
-                <p>
-                  {alert.description}
-                </p>
-
-                <div className="alert-list-meta">
-
-                  <span>
-                    {alert.id}
-                  </span>
-
-                  <span>
-                    {alert.endpoint}
-                  </span>
-
-                  <span>
-                    {alert.process}
-                  </span>
-
-                </div>
-
-              </div>
-
-              {/* RIGHT SIDE */}
-
-              <div className="alert-list-right">
-
-                <div
-                  className={`alert-list-status alert-status-${alert.status.toLowerCase()}`}
-                >
-                  {alert.status === 'RESOLVED' ? (
-                    <ShieldCheck size={14} />
-                  ) : (
-                    <ShieldAlert size={14} />
-                  )}
-
-                  {alert.status}
-                </div>
-
-                <div className="alert-list-time">
-                  <Clock3 size={12} />
-                  {alert.detectedAt}
-                </div>
-
-              </div>
-
-            </Link>
-
-          ))
-
-        ) : (
-
-          <div className="alert-empty-state">
-
-            <ShieldCheck size={28} />
-
-            <strong>
-              No alerts found
-            </strong>
+          <div>
+            <h2>
+              Security Alerts
+            </h2>
 
             <p>
-              Try changing your search or filters.
+              {loading
+                ? 'Loading alert telemetry...'
+                : `${filteredAlerts.length} of ${alerts.length} alerts`}
             </p>
-
           </div>
 
-        )}
+          <div className="alerts-api-source">
+            {apiOnline
+              ? 'FASTAPI /api/alerts'
+              : 'LOCAL FALLBACK'}
+          </div>
 
-      </div>
+        </div>
+
+        <div className="alerts-api-table-wrapper">
+
+          <table className="alerts-api-table">
+
+            <thead>
+              <tr>
+                <th>Alert</th>
+                <th>Severity</th>
+                <th>Category</th>
+                <th>Asset</th>
+                <th>Source</th>
+                <th>Confidence</th>
+                <th>Status</th>
+                <th>Time</th>
+                <th />
+              </tr>
+            </thead>
+
+            <tbody>
+
+              {filteredAlerts.map((alert) => (
+                <tr key={alert.alert_id}>
+
+                  <td>
+                    <div className="alerts-api-alert-cell">
+                      
+                      <Link
+                        to={`/alerts/${alert.alert_id}`}
+                        className="alerts-api-alert-link"
+                      >
+                        <span className="alerts-api-alert-id">
+                          {alert.alert_id}
+                        </span>
+                        
+                        <strong>
+                          {alert.title}
+                        </strong>
+                      </Link>
+                      
+                      <small>
+                        {alert.rule_id}
+                      </small>
+                      
+                    </div>
+                  </td>
+
+                  <td>
+                    <span
+                      className={severityClass(
+                        alert.severity,
+                      )}
+                    >
+                      {alert.severity}
+                    </span>
+                  </td>
+
+                  <td>
+                    <span className="alerts-api-category">
+                      {alert.category}
+                    </span>
+                  </td>
+
+                  <td>
+                    <span className="alerts-api-asset">
+                      {alert.asset}
+                    </span>
+                  </td>
+
+                  <td>
+                    <span className="alerts-api-source">
+                      {alert.source}
+                    </span>
+                  </td>
+
+                  <td>
+                    <div className="alerts-api-confidence">
+                      <div className="alerts-api-confidence-bar">
+                        <span
+                          style={{
+                            width: `${alert.confidence}%`,
+                          }}
+                        />
+                      </div>
+
+                      <strong>
+                        {alert.confidence}%
+                      </strong>
+                    </div>
+                  </td>
+
+                  <td>
+                    <span
+                      className={statusClass(
+                        alert.status,
+                      )}
+                    >
+                      {alert.status}
+                    </span>
+                  </td>
+
+                  <td>
+                    <span className="alerts-api-time">
+                      {formatTime(alert.created_at)}
+                    </span>
+                  </td>
+
+                  <td>
+                    <Link
+                      to={`/alerts/${alert.alert_id}`}
+                      className="alerts-api-view"
+                      title="Investigate alert"
+                    >
+                      <ArrowUpRight size={15} />
+                    </Link>
+                  </td>
+
+                </tr>
+              ))}
+
+            </tbody>
+
+          </table>
+
+          {filteredAlerts.length === 0 && (
+            <div className="alerts-api-empty">
+              <CheckCircle2 size={20} />
+              <span>No alerts match the current filters.</span>
+            </div>
+          )}
+
+        </div>
+
+      </section>
 
     </div>
   )
