@@ -65,6 +65,8 @@ type ApiEvent = {
   asset: string
   source: string
   confidence: number
+  alert_id: string | null
+  incident_id: string | null
   timestamp: string
 }
 
@@ -450,58 +452,6 @@ function severityClass(severity: Severity) {
   return `soc-event-badge soc-event-badge-${severity.toLowerCase()}`
 }
 
-function responseActionTone(action: string) {
-  const normalized = action.toUpperCase()
-
-  if (normalized === 'MARK_REVIEWED') {
-    return {
-      color: '#22c55e',
-      background: 'rgba(34, 197, 94, 0.08)',
-      border: 'rgba(34, 197, 94, 0.18)',
-    }
-  }
-
-  if (normalized === 'ESCALATE') {
-    return {
-      color: '#f59e0b',
-      background: 'rgba(245, 158, 11, 0.08)',
-      border: 'rgba(245, 158, 11, 0.18)',
-    }
-  }
-
-  if (normalized === 'ISOLATE_ASSET') {
-    return {
-      color: '#ef4444',
-      background: 'rgba(239, 68, 68, 0.08)',
-      border: 'rgba(239, 68, 68, 0.18)',
-    }
-  }
-
-  return {
-    color: '#38bdf8',
-    background: 'rgba(56, 189, 248, 0.08)',
-    border: 'rgba(56, 189, 248, 0.18)',
-  }
-}
-
-function formatActionTimestamp(timestamp: string) {
-  const date = new Date(timestamp)
-
-  if (Number.isNaN(date.getTime())) {
-    return timestamp
-  }
-
-  return date.toLocaleString([], {
-    year: 'numeric',
-    month: 'short',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hour12: false,
-  })
-}
-
 function statusClass(status: string) {
   const normalized = status.toLowerCase()
 
@@ -518,6 +468,36 @@ function statusClass(status: string) {
   }
 
   return 'soc-event-badge soc-event-badge-info'
+}
+
+function workflowStateFromActions(actions: ResponseAction[], fallbackStatus: string) {
+  if (!actions.length) return fallbackStatus.toUpperCase()
+  const latest = actions[0]
+  switch (latest.action.toUpperCase()) {
+    case 'MARK_REVIEWED': return 'REVIEWED'
+    case 'ESCALATE': return 'ESCALATED'
+    case 'ISOLATE_ASSET': return 'ISOLATION REQUESTED'
+    default: return latest.status.toUpperCase()
+  }
+}
+
+function workflowStateStyle(state: string) {
+  const normalized = state.toUpperCase()
+  if (normalized === 'REVIEWED') return { color: '#22c55e', background: 'rgba(34, 197, 94, 0.08)', border: 'rgba(34, 197, 94, 0.22)' }
+  if (normalized === 'ESCALATED') return { color: '#f59e0b', background: 'rgba(245, 158, 11, 0.08)', border: 'rgba(245, 158, 11, 0.22)' }
+  if (normalized === 'ISOLATION REQUESTED') return { color: '#ef4444', background: 'rgba(239, 68, 68, 0.08)', border: 'rgba(239, 68, 68, 0.22)' }
+  if (normalized === 'INVESTIGATING') return { color: '#22d3ee', background: 'rgba(34, 211, 238, 0.08)', border: 'rgba(34, 211, 238, 0.22)' }
+  return { color: '#94a3b8', background: 'rgba(148, 163, 184, 0.06)', border: 'rgba(148, 163, 184, 0.18)' }
+}
+
+function workflowStateDescription(state: string) {
+  switch (state.toUpperCase()) {
+    case 'REVIEWED': return 'An analyst has reviewed this event.'
+    case 'ESCALATED': return 'The event has been escalated for higher-priority handling.'
+    case 'ISOLATION REQUESTED': return 'An endpoint isolation request has been recorded. No endpoint disconnection is performed by this demo.'
+    case 'INVESTIGATING': return 'The event remains under analyst investigation.'
+    default: return 'Current workflow state is based on the latest persisted SOC response action.'
+  }
 }
 
 function SOCEventDetails() {
@@ -614,6 +594,8 @@ function SOCEventDetails() {
           source: apiEvent.source,
           category: apiEvent.category,
           confidence: apiEvent.confidence,
+          alertId: apiEvent.alert_id,
+          incidentId: apiEvent.incident_id,
         }
 
         setEvent(mergedEvent)
@@ -1247,6 +1229,43 @@ function SOCEventDetails() {
 
             <div className="soc-event-card-body">
 
+              {(() => {
+                const workflowState = workflowStateFromActions(responseActions, event.status)
+                const workflowTone = workflowStateStyle(workflowState)
+
+                return (
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: '14px',
+                      padding: '12px 14px',
+                      marginBottom: '14px',
+                      border: `1px solid ${workflowTone.border}`,
+                      borderRadius: '10px',
+                      background: workflowTone.background,
+                      flexWrap: 'wrap',
+                    }}
+                  >
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ color: '#64748b', fontSize: '10px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '4px' }}>
+                        Current Workflow State
+                      </div>
+                      <div style={{ color: '#e2e8f0', fontSize: '13px', fontWeight: 800, letterSpacing: '0.02em' }}>
+                        {workflowState}
+                      </div>
+                      <div style={{ marginTop: '3px', color: '#64748b', fontSize: '11px', lineHeight: 1.45 }}>
+                        {workflowStateDescription(workflowState)}
+                      </div>
+                    </div>
+                    <span style={{ color: workflowTone.color, border: `1px solid ${workflowTone.border}`, background: workflowTone.background, borderRadius: '999px', padding: '7px 10px', fontSize: '10px', fontWeight: 800, letterSpacing: '0.04em', whiteSpace: 'nowrap' }}>
+                      {responseActions.length > 0 ? 'LATEST ACTION' : 'EVENT STATUS'}
+                    </span>
+                  </div>
+                )
+              })()}
+
               <div
                 className="soc-event-actions"
                 style={{
@@ -1376,164 +1395,113 @@ function SOCEventDetails() {
                   style={{
                     marginTop: '18px',
                     borderTop: '1px solid rgba(148, 163, 184, 0.12)',
-                    paddingTop: '16px',
+                    paddingTop: '14px',
                   }}
                 >
                   <div
                     style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      gap: '12px',
-                      marginBottom: '12px',
+                      marginBottom: '10px',
+                      color: '#94a3b8',
+                      fontSize: '10px',
+                      fontWeight: 700,
+                      letterSpacing: '0.08em',
+                      textTransform: 'uppercase',
                     }}
                   >
-                    <div>
-                      <div
-                        style={{
-                          color: '#e2e8f0',
-                          fontSize: '11px',
-                          fontWeight: 700,
-                          letterSpacing: '0.06em',
-                          textTransform: 'uppercase',
-                        }}
-                      >
-                        Response Action History
-                      </div>
-                      <div
-                        style={{
-                          marginTop: '3px',
-                          color: '#64748b',
-                          fontSize: '10px',
-                        }}
-                      >
-                        Latest persisted SOC response actions
-                      </div>
-                    </div>
-
-                    <span
-                      style={{
-                        padding: '4px 7px',
-                        border: '1px solid rgba(56, 189, 248, 0.18)',
-                        borderRadius: '999px',
-                        background: 'rgba(56, 189, 248, 0.06)',
-                        color: '#38bdf8',
-                        fontSize: '9px',
-                        fontWeight: 700,
-                      }}
-                    >
-                      {responseActions.length} TOTAL
-                    </span>
+                    Recent Response Actions
                   </div>
 
-                  {responseActions.slice(0, 5).map((item) => {
-                    const tone = responseActionTone(item.action)
-
-                    return (
+                  {responseActions.slice(0, 5).map((item) => (
+                    <div
+                      key={item.action_id}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: '12px',
+                        padding: '10px 12px',
+                        marginBottom: '7px',
+                        border: '1px solid rgba(148, 163, 184, 0.10)',
+                        borderRadius: '8px',
+                        background: 'rgba(15, 23, 42, 0.45)',
+                      }}
+                    >
                       <div
-                        key={item.action_id}
                         style={{
-                          display: 'grid',
-                          gridTemplateColumns: '30px minmax(0, 1fr)',
-                          columnGap: '10px',
-                          rowGap: '8px',
-                          alignItems: 'start',
-                          padding: '12px',
-                          marginBottom: '8px',
-                          border: '1px solid rgba(148, 163, 184, 0.10)',
-                          borderRadius: '9px',
-                          background: 'rgba(15, 23, 42, 0.45)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '12px',
+                          minWidth: 0,
+                          flex: '1 1 auto',
                         }}
                       >
                         <div
                           style={{
-                            width: '30px',
-                            height: '30px',
+                            width: '28px',
+                            height: '28px',
+                            minWidth: '28px',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            flex: '0 0 auto',
-                            border: `1px solid ${tone.border}`,
-                            borderRadius: '8px',
-                            background: tone.background,
-                            color: tone.color,
-                            gridColumn: '1',
-                            gridRow: '1',
+                            borderRadius: '7px',
+                            border: '1px solid rgba(34, 211, 238, 0.14)',
+                            background: 'rgba(34, 211, 238, 0.05)',
+                            color: '#22d3ee',
                           }}
                         >
-                          {item.action === 'MARK_REVIEWED' ? (
-                            <ShieldCheck size={14} />
-                          ) : item.action === 'ESCALATE' ? (
-                            <Activity size={14} />
-                          ) : (
-                            <AlertTriangle size={14} />
-                          )}
+                          <Activity size={13} />
                         </div>
 
                         <div
                           style={{
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '3px',
                             minWidth: 0,
-                            gridColumn: '2',
-                            gridRow: '1',
                           }}
                         >
-                          <div style={{ minWidth: 0 }}>
-                            <div
-                              style={{
-                                color: '#e2e8f0',
-                                fontSize: '11px',
-                                fontWeight: 700,
-                                textTransform: 'uppercase',
-                                whiteSpace: 'nowrap',
-                              overflow: 'hidden',
-                              textOverflow: 'ellipsis',
+                          <strong
+                            style={{
+                              color: '#e2e8f0',
+                              fontSize: '11px',
+                              textTransform: 'uppercase',
+                              letterSpacing: '0.03em',
                             }}
                           >
                             {item.action.replaceAll('_', ' ')}
-                            </div>
-
-                            <div
-                              style={{
-                                display: 'flex',
-                                flexDirection: 'column',
-                                gap: '3px',
-                                marginTop: '5px',
-                                color: '#64748b',
-                                fontSize: '10px',
-                                lineHeight: 1.45,
-                              }}
-                            >
-                              <span>{item.analyst}</span>
-                              <span>{formatActionTimestamp(item.created_at)}</span>
-                              <span style={{ color: '#475569' }}>{item.action_id}</span>
-                            </div>
-                          </div>
+                          </strong>
+                          <span style={{ color: '#64748b', fontSize: '10px' }}>
+                            {item.analyst} · {new Date(item.created_at).toLocaleString()}
+                          </span>
+                          <span
+                            style={{
+                              color: '#475569',
+                              fontSize: '9px',
+                              fontFamily: 'monospace',
+                            }}
+                          >
+                            {item.action_id}
+                          </span>
                         </div>
-
-                        <span
-                          style={{
-                            gridColumn: '2',
-                            gridRow: '2',
-                            justifySelf: 'start',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            width: 'fit-content',
-                            padding: '5px 8px',
-                            border: `1px solid ${tone.border}`,
-                            borderRadius: '999px',
-                            background: tone.background,
-                            color: tone.color,
-                            fontSize: '9px',
-                            fontWeight: 700,
-                            letterSpacing: '0.06em',
-                            whiteSpace: 'nowrap',
-                          }}
-                        >
-                          {item.status}
-                        </span>
                       </div>
-                    )
-                  })}
+
+                      <span
+                        style={{
+                          flexShrink: 0,
+                          padding: '4px 7px',
+                          border: '1px solid rgba(34, 197, 94, 0.18)',
+                          borderRadius: '5px',
+                          background: 'rgba(34, 197, 94, 0.06)',
+                          color: '#22c55e',
+                          fontSize: '9px',
+                          fontWeight: 700,
+                          letterSpacing: '0.06em',
+                        }}
+                      >
+                        {item.status}
+                      </span>
+                    </div>
+                  ))}
                 </div>
               )}
 

@@ -73,6 +73,21 @@ type ApiEndpoint = {
   lastSeen?: string
 }
 
+type ApiIncident = {
+  id?: number
+  incident_id: string
+  title: string
+  description?: string
+  severity: Severity
+  status: string
+  analyst?: string
+  primary_asset?: string
+  related_event_ids?: string[]
+  related_alert_ids?: string[]
+  created_at: string
+  updated_at: string
+}
+
 const API_BASE = 'http://127.0.0.1:8000'
 
 function formatTime(value: string) {
@@ -213,6 +228,7 @@ export default function SOC() {
   const [events, setEvents] = useState<SecurityEvent[]>([])
   const [alerts, setAlerts] = useState<ApiAlert[]>([])
   const [endpoints, setEndpoints] = useState<ApiEndpoint[]>([])
+  const [incidents, setIncidents] = useState<ApiIncident[]>([])
   const [apiState, setApiState] = useState<'loading' | 'connected' | 'partial' | 'offline'>('loading')
   const [lastUpdated, setLastUpdated] = useState('—')
 
@@ -233,6 +249,10 @@ export default function SOC() {
           if (!response.ok) throw new Error('Endpoints API request failed')
           return (await response.json()) as ApiEndpoint[]
         }),
+        fetch(`${API_BASE}/api/incidents`).then(async (response) => {
+          if (!response.ok) throw new Error('Incidents API request failed')
+          return (await response.json()) as ApiIncident[]
+        }),
       ])
 
       if (cancelled) return
@@ -240,6 +260,7 @@ export default function SOC() {
       const eventsResult = results[0]
       const alertsResult = results[1]
       const endpointsResult = results[2]
+      const incidentsResult = results[3]
       const successful = results.filter((result) => result.status === 'fulfilled').length
 
       if (eventsResult.status === 'fulfilled') {
@@ -267,8 +288,14 @@ export default function SOC() {
         setEndpoints([])
       }
 
+      if (incidentsResult.status === 'fulfilled') {
+        setIncidents(incidentsResult.value)
+      } else {
+        setIncidents([])
+      }
+
       setApiState(
-        successful === 3
+        successful === 4
           ? 'connected'
           : successful > 0
             ? 'partial'
@@ -301,6 +328,15 @@ export default function SOC() {
   const criticalAlerts = useMemo(
     () => alerts.filter((alert) => alert.severity === 'CRITICAL').length,
     [alerts],
+  )
+
+  const openIncidents = useMemo(
+    () =>
+      incidents.filter(
+        (incident) =>
+          String(incident.status).toUpperCase() !== 'RESOLVED',
+      ).length,
+    [incidents],
   )
 
   const endpointsAtRisk = useMemo(
@@ -505,8 +541,8 @@ export default function SOC() {
         <MetricCard
           icon={<Zap size={21} />}
           label="Open Incidents"
-          value="—"
-          detail="Incident API pending"
+          value={String(openIncidents)}
+          detail="Loaded from incident service"
           tone="purple"
         />
       </div>
@@ -654,9 +690,9 @@ export default function SOC() {
             <div>
               <span>
                 <AlertTriangle size={15} />
-                Vulnerability Exposure
+                Open Investigations
               </span>
-              <strong>—</strong>
+              <strong>{openIncidents}</strong>
             </div>
 
             <div>
@@ -847,6 +883,17 @@ export default function SOC() {
                 <span>Requires endpoint investigation</span>
               </div>
               <b>{String(endpointsAtRisk).padStart(2, '0')}</b>
+            </div>
+
+            <div className="soc-queue-item">
+              <div className="soc-queue-icon high">
+                <Zap size={16} />
+              </div>
+              <div>
+                <strong>{openIncidents} open incidents</strong>
+                <span>Active investigation cases</span>
+              </div>
+              <b>{String(openIncidents).padStart(2, '0')}</b>
             </div>
           </div>
         </section>

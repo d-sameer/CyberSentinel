@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Optional
 
 from sqlalchemy import DateTime, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
@@ -60,4 +61,17 @@ class SecurityEvent(Base):
     timestamp: Mapped[datetime] = mapped_column(
         DateTime,
         default=datetime.utcnow,
-    )   
+    )
+
+    # Security correlation
+    alert_id: Mapped[Optional[str]] = mapped_column(
+        String(50),
+        nullable=True,
+        index=True,
+    )
+
+    incident_id: Mapped[Optional[str]] = mapped_column(
+        String(50),
+        nullable=True,
+        index=True,
+    )

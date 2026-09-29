@@ -13,10 +13,25 @@ import {
   User,
   Users,
 } from 'lucide-react'
+import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 
 type AuthStatus = 'SUCCESS' | 'FAILED' | 'BLOCKED' | 'LOCKED'
 type RiskLevel = 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW'
+
+type ApiIdentityCorrelation = {
+  type: 'EVENT' | 'ALERT' | 'INCIDENT' | 'ENDPOINT'
+  value: string
+  context: string
+}
+
+type ApiIdentityCorrelationResponse = {
+  identity_id: string
+  correlation_source: string
+  correlations: ApiIdentityCorrelation[]
+}
+
+const API_BASE_URL = 'http://127.0.0.1:8000'
 
 type IdentityDetail = {
   id: string
@@ -77,7 +92,7 @@ const identityDetails: IdentityDetail[] = [
     accountType: 'Privileged User',
     authenticationProvider: 'Windows Active Directory',
     sessionId: 'NO SESSION',
-    relatedAlert: 'ALT-003',
+    relatedAlert: 'ALT-007',
     relatedIncident: 'INC-002',
     assessment:
       'Repeated authentication failures were observed against a privileged account. The activity requires investigation for possible credential abuse or brute-force behavior.',
@@ -164,6 +179,125 @@ export default function IdentityDetails() {
     identityDetails.find((identityEvent) => identityEvent.id === eventId) ??
     fallback
 
+  type IdentityAction = {
+    id: number
+    action_id: string
+    identity_id: string
+    action: string
+    status: string
+    analyst: string
+    created_at: string
+  }
+
+  const [apiCorrelations, setApiCorrelations] = useState<ApiIdentityCorrelation[] | null>(null)
+  const [apiConnected, setApiConnected] = useState(false)
+  const [actionHistory, setActionHistory] = useState<IdentityAction[]>([])
+  const [actionLoading, setActionLoading] = useState(false)
+  const [actionMessage, setActionMessage] = useState('')
+
+  useEffect(() => {
+    let cancelled = false
+
+    async function loadCorrelations() {
+      if (!eventId) return
+
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/identity/${eventId}`)
+        if (!response.ok) throw new Error(`Identity correlation API returned ${response.status}`)
+
+        const data: ApiIdentityCorrelationResponse = await response.json()
+
+        if (!cancelled) {
+          setApiCorrelations(data.correlations)
+          setApiConnected(true)
+        }
+      } catch (error) {
+        console.error('Failed to load identity correlations:', error)
+        if (!cancelled) {
+          setApiCorrelations(null)
+          setApiConnected(false)
+        }
+      }
+    }
+
+    loadCorrelations()
+    return () => { cancelled = true }
+  }, [eventId])
+
+  useEffect(() => {
+    let cancelled = false
+
+    async function loadActionHistory() {
+      if (!eventId) return
+
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/identity/${eventId}/actions`)
+        if (!response.ok) throw new Error(`Identity action API returned ${response.status}`)
+
+        const data: IdentityAction[] = await response.json()
+
+        if (!cancelled) {
+          setActionHistory(data)
+        }
+      } catch (error) {
+        console.error('Failed to load identity response history:', error)
+        if (!cancelled) {
+          setActionHistory([])
+        }
+      }
+    }
+
+    loadActionHistory()
+    return () => { cancelled = true }
+  }, [eventId])
+
+  const correlations = apiCorrelations ?? []
+
+  const correlationLink = (correlation: ApiIdentityCorrelation) => {
+    if (correlation.type === 'EVENT') return `/soc/events/${correlation.value}`
+    if (correlation.type === 'ALERT') return `/alerts/${correlation.value}`
+    if (correlation.type === 'INCIDENT') return `/incidents/${correlation.value}`
+    if (correlation.type === 'ENDPOINT') return `/endpoints/${correlation.value}`
+    return null
+  }
+
+  const backendAlert = correlations.find((correlation) => correlation.type === 'ALERT')?.value ?? item.relatedAlert
+  const backendIncident = correlations.find((correlation) => correlation.type === 'INCIDENT')?.value ?? item.relatedIncident
+
+  async function executeAction(action: 'CREATE_ALERT' | 'REVIEW_ACCOUNT' | 'LOCK_ACCOUNT') {
+    if (!eventId || actionLoading) return
+
+    setActionLoading(true)
+    setActionMessage('')
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/identity/${eventId}/actions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action,
+          analyst: 'SOC Analyst',
+        }),
+      })
+
+      if (!response.ok) {
+        const errorText = await response.text()
+        throw new Error(errorText || `Action failed with status ${response.status}`)
+      }
+
+      const created: IdentityAction = await response.json()
+      setActionHistory((current) => [created, ...current])
+      setActionMessage(`${created.action.replaceAll('_', ' ')} completed — ${created.status.replaceAll('_', ' ')}`)
+    } catch (error) {
+      console.error('Identity response action failed:', error)
+      setActionMessage('Response action failed. Check the CyberSentinel API.')
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
   const timeline = [
     {
       time: item.timestamp,
@@ -187,10 +321,10 @@ export default function IdentityDetails() {
       time: '21:37:19',
       title: 'SOC review state updated',
       detail:
-        item.relatedAlert !== 'None'
-          ? `Correlated alert ${item.relatedAlert} is available for investigation.`
+        backendAlert !== 'None'
+          ? `Correlated alert ${backendAlert} is available for investigation.`
           : 'No related alert was generated.',
-      type: item.relatedAlert !== 'None' ? 'warning' : 'success',
+      type: backendAlert !== 'None' ? 'warning' : 'success',
     },
   ]
 
@@ -318,12 +452,12 @@ export default function IdentityDetails() {
           <div className="identity-assessment-footer">
             <div>
               <span>RELATED ALERT</span>
-              <strong>{item.relatedAlert}</strong>
+              <strong>{backendAlert}</strong>
             </div>
 
             <div>
               <span>RELATED INCIDENT</span>
-              <strong>{item.relatedIncident}</strong>
+              <strong>{backendIncident}</strong>
             </div>
           </div>
         </section>
@@ -391,25 +525,49 @@ export default function IdentityDetails() {
           </div>
 
           <div className="identity-correlation-list">
-            <div>
-              <span>ALERT</span>
-              <strong>{item.relatedAlert}</strong>
-            </div>
+            {correlations.length > 0 ? (
+              correlations.map((correlation) => {
+                const link = correlationLink(correlation)
 
-            <div>
-              <span>INCIDENT</span>
-              <strong>{item.relatedIncident}</strong>
-            </div>
-
-            <div>
-              <span>ENDPOINT</span>
-              <strong>{item.endpoint}</strong>
-            </div>
+                return (
+                  <div key={`${correlation.type}-${correlation.value}`}>
+                    <span>{correlation.type}</span>
+                    {link ? (
+                      <Link to={link} style={{ color: '#67e8f9', textDecoration: 'none' }} title={correlation.context}>
+                        <strong>{correlation.value}</strong>
+                      </Link>
+                    ) : (
+                      <strong>{correlation.value}</strong>
+                    )}
+                  </div>
+                )
+              })
+            ) : (
+              <div>
+                <span>SECURITY OBJECTS</span>
+                <strong>No correlated objects</strong>
+              </div>
+            )}
 
             <div>
               <span>SESSION</span>
               <strong className="mono">{item.sessionId}</strong>
             </div>
+          </div>
+
+          <div
+            style={{
+              marginTop: '14px',
+              padding: '9px 11px',
+              borderRadius: '8px',
+              border: '1px solid rgba(51, 65, 85, 0.45)',
+              color: '#64748b',
+              fontSize: '11px',
+            }}
+          >
+            {apiConnected
+              ? 'BACKEND CONNECTED — correlation data is loaded from the CyberSentinel API.'
+              : 'DEMO DATA — backend correlation data is unavailable.'}
           </div>
         </section>
       </div>
@@ -460,21 +618,83 @@ export default function IdentityDetails() {
         </div>
 
         <div className="identity-response-actions">
-          <button type="button">
+          <button
+            type="button"
+            onClick={() => executeAction('CREATE_ALERT')}
+            disabled={actionLoading}
+          >
             <ShieldAlert size={16} />
-            Create Alert
+            {actionLoading ? 'Processing...' : 'Create Alert'}
           </button>
 
-          <button type="button">
+          <button
+            type="button"
+            onClick={() => executeAction('REVIEW_ACCOUNT')}
+            disabled={actionLoading}
+          >
             <Users size={16} />
-            Review Account
+            {actionLoading ? 'Processing...' : 'Review Account'}
           </button>
 
-          <button type="button">
+          <button
+            type="button"
+            onClick={() => executeAction('LOCK_ACCOUNT')}
+            disabled={actionLoading}
+          >
             <LockKeyhole size={16} />
-            Lock Account
+            {actionLoading ? 'Processing...' : 'Lock Account'}
           </button>
         </div>
+
+        {actionMessage && (
+          <div
+            style={{
+              marginTop: '14px',
+              padding: '10px 12px',
+              borderRadius: '8px',
+              border: '1px solid rgba(34, 211, 238, 0.25)',
+              background: 'rgba(8, 47, 73, 0.22)',
+              color: '#67e8f9',
+              fontSize: '12px',
+            }}
+          >
+            {actionMessage}
+          </div>
+        )}
+
+        {actionHistory.length > 0 && (
+          <div style={{ marginTop: '18px' }}>
+            <div className="panel-kicker">RESPONSE HISTORY</div>
+            <div style={{ display: 'grid', gap: '8px', marginTop: '10px' }}>
+              {actionHistory.map((action) => (
+                <div
+                  key={action.action_id}
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    gap: '12px',
+                    alignItems: 'center',
+                    padding: '10px 12px',
+                    borderRadius: '8px',
+                    border: '1px solid rgba(51, 65, 85, 0.45)',
+                  }}
+                >
+                  <div>
+                    <strong style={{ display: 'block', color: '#cbd5e1', fontSize: '12px' }}>
+                      {action.action.replaceAll('_', ' ')}
+                    </strong>
+                    <span style={{ color: '#64748b', fontSize: '11px' }}>
+                      {action.action_id} · {action.analyst}
+                    </span>
+                  </div>
+                  <span style={{ color: '#67e8f9', fontSize: '11px' }}>
+                    {action.status.replaceAll('_', ' ')}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </section>
     </div>
   )

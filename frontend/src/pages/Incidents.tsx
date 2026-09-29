@@ -8,15 +8,31 @@ import {
   ShieldCheck,
   User,
 } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 
 type IncidentSeverity = 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW'
+
 type IncidentStatus =
   | 'OPEN'
   | 'INVESTIGATING'
   | 'CONTAINED'
   | 'RESOLVED'
+
+type ApiIncident = {
+  id: number
+  incident_id: string
+  title: string
+  description: string
+  severity: string
+  status: string
+  analyst: string
+  primary_asset: string
+  related_event_ids: string[]
+  related_alert_ids: string[]
+  created_at: string
+  updated_at: string
+}
 
 type Incident = {
   id: string
@@ -34,141 +50,138 @@ type Incident = {
   updated: string
 }
 
-const incidents: Incident[] = [
-  {
-    id: 'INC-001',
-    title: 'Suspicious PowerShell Activity',
-    description:
-      'PowerShell execution with ExecutionPolicy Bypass was detected on a monitored endpoint.',
-    severity: 'HIGH',
-    status: 'INVESTIGATING',
-    endpoint: 'WIN-01',
-    analyst: 'SOC Analyst',
-    source: 'DET-001',
-    technique: 'T1059.001',
-    techniqueName: 'PowerShell',
-    evidenceCount: 8,
-    created: 'Today, 10:06:14',
-    updated: 'Today, 10:18:42',
-  },
-  {
-    id: 'INC-002',
-    title: 'Repeated Authentication Failures',
-    description:
-      'Multiple failed authentication attempts were observed from the same source.',
-    severity: 'MEDIUM',
-    status: 'OPEN',
-    endpoint: 'WIN-02',
-    analyst: 'Unassigned',
-    source: 'DET-003',
-    technique: 'T1110',
-    techniqueName: 'Brute Force',
-    evidenceCount: 5,
-    created: 'Today, 10:27:12',
-    updated: 'Today, 10:27:12',
-  },
-  {
-    id: 'INC-003',
-    title: 'Suspicious Outbound Connection',
-    description:
-      'A monitored process established an outbound HTTPS connection following suspicious execution.',
-    severity: 'HIGH',
-    status: 'INVESTIGATING',
-    endpoint: 'WIN-01',
-    analyst: 'SOC Analyst',
-    source: 'DET-005',
-    technique: 'T1071.001',
-    techniqueName: 'Web Protocols',
-    evidenceCount: 11,
-    created: 'Today, 10:06:42',
-    updated: 'Today, 10:21:07',
-  },
-  {
-    id: 'INC-004',
-    title: 'Security File Deletion Attempt',
-    description:
-      'An attempt to delete a protected security configuration file was blocked.',
-    severity: 'CRITICAL',
-    status: 'CONTAINED',
-    endpoint: 'WIN-02',
-    analyst: 'SOC Analyst',
-    source: 'DET-006',
-    technique: 'T1070.004',
-    techniqueName: 'File Deletion',
-    evidenceCount: 14,
-    created: 'Today, 10:26:39',
-    updated: 'Today, 10:32:15',
-  },
-  {
-    id: 'INC-005',
-    title: 'SSH Key Modification',
-    description:
-      'The SSH authorized_keys configuration was modified on a Linux endpoint.',
-    severity: 'MEDIUM',
-    status: 'OPEN',
-    endpoint: 'LINUX-01',
-    analyst: 'Unassigned',
-    source: 'DET-007',
-    technique: 'T1098.004',
-    techniqueName: 'SSH Authorized Keys',
-    evidenceCount: 4,
-    created: 'Today, 10:31:04',
-    updated: 'Today, 10:31:04',
-  },
-  {
-    id: 'INC-006',
-    title: 'Unsigned Binary Execution',
-    description:
-      'An unsigned executable was launched from a user temporary directory.',
-    severity: 'HIGH',
-    status: 'INVESTIGATING',
-    endpoint: 'WIN-02',
-    analyst: 'SOC Analyst',
-    source: 'DET-008',
-    technique: 'T1036',
-    techniqueName: 'Masquerading',
-    evidenceCount: 7,
-    created: 'Today, 10:25:11',
-    updated: 'Today, 10:34:51',
-  },
-  {
-    id: 'INC-007',
-    title: 'New Local Administrator',
-    description:
-      'A user account was added to a privileged administrator group.',
-    severity: 'HIGH',
-    status: 'RESOLVED',
-    endpoint: 'WIN-03',
-    analyst: 'SOC Analyst',
-    source: 'DET-004',
-    technique: 'T1098',
-    techniqueName: 'Account Manipulation',
-    evidenceCount: 6,
-    created: 'Yesterday, 16:44:18',
-    updated: 'Yesterday, 17:12:03',
-  },
-  {
-    id: 'INC-008',
-    title: 'Security Process Termination',
-    description:
-      'An attempt to terminate a protected security monitoring process was detected.',
-    severity: 'CRITICAL',
-    status: 'CONTAINED',
-    endpoint: 'WIN-04',
-    analyst: 'SOC Analyst',
-    source: 'DET-010',
-    technique: 'T1562.001',
-    techniqueName: 'Impair Defenses',
-    evidenceCount: 12,
-    created: 'Today, 09:48:22',
-    updated: 'Today, 10:02:18',
-  },
-]
+const API_BASE_URL = 'http://127.0.0.1:8000'
+
+function normalizeSeverity(value: string): IncidentSeverity {
+  const severity = value.toUpperCase()
+
+  if (
+    severity === 'CRITICAL' ||
+    severity === 'HIGH' ||
+    severity === 'MEDIUM' ||
+    severity === 'LOW'
+  ) {
+    return severity
+  }
+
+  return 'MEDIUM'
+}
+
+function normalizeStatus(value: string): IncidentStatus {
+  const status = value.toUpperCase()
+
+  if (
+    status === 'OPEN' ||
+    status === 'INVESTIGATING' ||
+    status === 'CONTAINED' ||
+    status === 'RESOLVED'
+  ) {
+    return status
+  }
+
+  return 'OPEN'
+}
+
+function formatIncidentDate(value: string) {
+  const date = new Date(value)
+
+  if (Number.isNaN(date.getTime())) {
+    return value
+  }
+
+  return date.toLocaleString([], {
+    month: 'short',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  })
+}
+
+function mapApiIncident(item: ApiIncident): Incident {
+  const relatedEvidence = [
+    ...(item.related_event_ids ?? []),
+    ...(item.related_alert_ids ?? []),
+  ]
+
+  const source =
+    item.related_alert_ids?.length > 0
+      ? item.related_alert_ids.join(', ')
+      : item.related_event_ids?.length > 0
+        ? item.related_event_ids.join(', ')
+        : 'Incident API'
+
+  return {
+    id: item.incident_id,
+    title: item.title,
+    description: item.description,
+    severity: normalizeSeverity(item.severity),
+    status: normalizeStatus(item.status),
+    endpoint: item.primary_asset,
+    analyst: item.analyst || 'Unassigned',
+    source,
+    technique: 'Linked Evidence',
+    techniqueName:
+      item.related_event_ids?.length > 0
+        ? item.related_event_ids.join(', ')
+        : 'No linked events',
+    evidenceCount: relatedEvidence.length,
+    created: formatIncidentDate(item.created_at),
+    updated: formatIncidentDate(item.updated_at),
+  }
+}
 
 function Incidents() {
+  const [incidents, setIncidents] = useState<Incident[]>([])
   const [search, setSearch] = useState('')
   const [severityFilter, setSeverityFilter] = useState('ALL')
   const [statusFilter, setStatusFilter] = useState('ALL')
+
+  const [loading, setLoading] = useState(true)
+  const [apiError, setApiError] = useState('')
+
+  useEffect(() => {
+    let cancelled = false
+
+    async function loadIncidents() {
+      try {
+        setLoading(true)
+        setApiError('')
+
+        const response = await fetch(`${API_BASE_URL}/api/incidents`)
+
+        if (!response.ok) {
+          throw new Error(`Incident API returned ${response.status}`)
+        }
+
+        const data: ApiIncident[] = await response.json()
+
+        if (!cancelled) {
+          setIncidents(data.map(mapApiIncident))
+        }
+      } catch (error) {
+        console.error('Failed to load incidents:', error)
+
+        if (!cancelled) {
+          setApiError(
+            'Unable to connect to the Incident API. Make sure the CyberSentinel backend is running.',
+          )
+          setIncidents([])
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false)
+        }
+      }
+    }
+
+    loadIncidents()
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   const filteredIncidents = useMemo(() => {
     const query = search.trim().toLowerCase()
@@ -192,13 +205,9 @@ function Incidents() {
         statusFilter === 'ALL' ||
         incident.status === statusFilter
 
-      return (
-        matchesSearch &&
-        matchesSeverity &&
-        matchesStatus
-      )
+      return matchesSearch && matchesSeverity && matchesStatus
     })
-  }, [search, severityFilter, statusFilter])
+  }, [incidents, search, severityFilter, statusFilter])
 
   const totalIncidents = incidents.length
 
@@ -235,9 +244,29 @@ function Incidents() {
 
         <div className="incident-engine-status">
           <span />
-          RESPONSE CENTER ONLINE
+          {loading ? 'CONNECTING TO RESPONSE CENTER' : 'RESPONSE CENTER ONLINE'}
         </div>
       </div>
+
+      {apiError && (
+        <div
+          style={{
+            marginBottom: '18px',
+            padding: '13px 15px',
+            borderRadius: '10px',
+            border: '1px solid rgba(239, 68, 68, 0.25)',
+            background: 'rgba(239, 68, 68, 0.07)',
+            color: '#fca5a5',
+            fontSize: '13px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '9px',
+          }}
+        >
+          <AlertTriangle size={16} />
+          <span>{apiError}</span>
+        </div>
+      )}
 
       <section className="incident-summary-grid">
         <div className="incident-summary-card">
@@ -247,7 +276,7 @@ function Incidents() {
 
           <div>
             <span>TOTAL INCIDENTS</span>
-            <strong>{totalIncidents}</strong>
+            <strong>{loading ? '—' : totalIncidents}</strong>
           </div>
         </div>
 
@@ -258,7 +287,7 @@ function Incidents() {
 
           <div>
             <span>ACTIVE CASES</span>
-            <strong>{activeIncidents}</strong>
+            <strong>{loading ? '—' : activeIncidents}</strong>
           </div>
         </div>
 
@@ -269,7 +298,7 @@ function Incidents() {
 
           <div>
             <span>CRITICAL</span>
-            <strong>{criticalIncidents}</strong>
+            <strong>{loading ? '—' : criticalIncidents}</strong>
           </div>
         </div>
 
@@ -280,7 +309,7 @@ function Incidents() {
 
           <div>
             <span>LINKED EVIDENCE</span>
-            <strong>{evidenceTotal}</strong>
+            <strong>{loading ? '—' : evidenceTotal}</strong>
           </div>
         </div>
       </section>
@@ -291,9 +320,7 @@ function Incidents() {
 
           <input
             value={search}
-            onChange={(event) =>
-              setSearch(event.target.value)
-            }
+            onChange={(event) => setSearch(event.target.value)}
             placeholder="Search incidents..."
           />
         </div>
@@ -341,8 +368,9 @@ function Incidents() {
             <strong>Active Investigation Cases</strong>
 
             <span>
-              {filteredIncidents.length} incidents matching
-              current filters
+              {loading
+                ? 'Loading incidents from backend...'
+                : `${filteredIncidents.length} incidents matching current filters`}
             </span>
           </div>
 
@@ -350,97 +378,126 @@ function Incidents() {
         </div>
 
         <div className="incident-table-wrap">
-          <table className="incident-table">
-            <thead>
-              <tr>
-                <th>INCIDENT</th>
-                <th>SEVERITY</th>
-                <th>STATUS</th>
-                <th>ENDPOINT</th>
-                <th>ANALYST</th>
-                <th>DETECTION</th>
-                <th>MITRE ATT&CK</th>
-                <th>EVIDENCE</th>
-              </tr>
-            </thead>
-
-            <tbody>
-              {filteredIncidents.map((incident) => (
-                <tr key={incident.id}>
-                  <td>
-                    <Link
-                      to={`/incidents/${incident.id}`}
-                      className="incident-link"
-                    >
-                      <strong>{incident.title}</strong>
-                      <span>{incident.id}</span>
-                    </Link>
-                  </td>
-
-                  <td>
-                    <span
-                      className={`incident-severity incident-severity-${incident.severity.toLowerCase()}`}
-                    >
-                      <AlertTriangle size={13} />
-                      {incident.severity}
-                    </span>
-                  </td>
-
-                  <td>
-                    <span
-                      className={`incident-status incident-status-${incident.status.toLowerCase()}`}
-                    >
-                      <span />
-                      {incident.status}
-                    </span>
-                  </td>
-
-                  <td>
-                    <strong className="incident-endpoint">
-                      {incident.endpoint}
-                    </strong>
-                  </td>
-
-                  <td>
-                    <div className="incident-analyst">
-                      <User size={13} />
-                      <span>{incident.analyst}</span>
-                    </div>
-                  </td>
-
-                  <td>
-                    <span className="incident-source">
-                      {incident.source}
-                    </span>
-                  </td>
-
-                  <td>
-                    <div className="incident-technique">
-                      <strong>{incident.technique}</strong>
-                      <span>{incident.techniqueName}</span>
-                    </div>
-                  </td>
-
-                  <td>
-                    <strong className="incident-evidence-count">
-                      {incident.evidenceCount}
-                    </strong>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-
-          {filteredIncidents.length === 0 && (
-            <div className="incident-empty">
-              <ShieldAlert size={25} />
-
-              <strong>No incidents found</strong>
-
-              <span>
-                Try changing the search or filter criteria.
+          {loading ? (
+            <div
+              style={{
+                minHeight: '260px',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '10px',
+                color: '#94a3b8',
+              }}
+            >
+              <Clock3 size={24} />
+              <strong
+                style={{
+                  color: '#cbd5e1',
+                  fontSize: '14px',
+                }}
+              >
+                Loading incident data
+              </strong>
+              <span style={{ fontSize: '12px' }}>
+                Connecting to CyberSentinel Incident API...
               </span>
             </div>
+          ) : (
+            <>
+              <table className="incident-table">
+                <thead>
+                  <tr>
+                    <th>INCIDENT</th>
+                    <th>SEVERITY</th>
+                    <th>STATUS</th>
+                    <th>ENDPOINT</th>
+                    <th>ANALYST</th>
+                    <th>DETECTION</th>
+                    <th>MITRE ATT&CK</th>
+                    <th>EVIDENCE</th>
+                  </tr>
+                </thead>
+
+                <tbody>
+                  {filteredIncidents.map((incident) => (
+                    <tr key={incident.id}>
+                      <td>
+                        <Link
+                          to={`/incidents/${incident.id}`}
+                          className="incident-link"
+                        >
+                          <strong>{incident.title}</strong>
+                          <span>{incident.id}</span>
+                        </Link>
+                      </td>
+
+                      <td>
+                        <span
+                          className={`incident-severity incident-severity-${incident.severity.toLowerCase()}`}
+                        >
+                          <AlertTriangle size={13} />
+                          {incident.severity}
+                        </span>
+                      </td>
+
+                      <td>
+                        <span
+                          className={`incident-status incident-status-${incident.status.toLowerCase()}`}
+                        >
+                          <span />
+                          {incident.status}
+                        </span>
+                      </td>
+
+                      <td>
+                        <strong className="incident-endpoint">
+                          {incident.endpoint}
+                        </strong>
+                      </td>
+
+                      <td>
+                        <div className="incident-analyst">
+                          <User size={13} />
+                          <span>{incident.analyst}</span>
+                        </div>
+                      </td>
+
+                      <td>
+                        <span className="incident-source">
+                          {incident.source}
+                        </span>
+                      </td>
+
+                      <td>
+                        <div className="incident-technique">
+                          <strong>{incident.technique}</strong>
+                          <span>{incident.techniqueName}</span>
+                        </div>
+                      </td>
+
+                      <td>
+                        <strong className="incident-evidence-count">
+                          {incident.evidenceCount}
+                        </strong>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+
+              {filteredIncidents.length === 0 && (
+                <div className="incident-empty">
+                  <ShieldAlert size={25} />
+
+                  <strong>No incidents found</strong>
+
+                  <span>
+                    Try changing the search or filter criteria.
+                  </span>
+                </div>
+              )}
+            </>
           )}
         </div>
       </section>

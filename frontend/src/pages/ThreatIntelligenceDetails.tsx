@@ -12,6 +12,7 @@ import {
   ShieldAlert,
   ShieldCheck,
 } from 'lucide-react'
+import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 
 type IocType = 'IP' | 'DOMAIN' | 'HASH' | 'URL'
@@ -31,6 +32,20 @@ type TimelineItem = {
   title: string
   description: string
   source: string
+}
+
+type ApiCorrelationItem = {
+  type: string
+  value: string
+  context: string
+  time: string
+  severity: ThreatLevel
+}
+
+type ApiThreatIndicatorResponse = {
+  indicator_id: string
+  correlation_source: string
+  correlations: ApiCorrelationItem[]
 }
 
 type ThreatIndicator = {
@@ -385,9 +400,72 @@ const statusClass = (status: IocStatus) =>
 
 export default function ThreatIntelligenceDetails() {
   const { indicatorId } = useParams<{ indicatorId: string }>()
+  const [apiCorrelations, setApiCorrelations] = useState<ApiCorrelationItem[] | null>(null)
+  const [apiConnected, setApiConnected] = useState(false)
 
   const indicator =
     indicators.find((item) => item.id === indicatorId) ?? fallbackIndicator
+
+  useEffect(() => {
+    let cancelled = false
+
+    const loadCorrelation = async () => {
+      if (!indicatorId) {
+        return
+      }
+
+      try {
+        const response = await fetch(
+          `http://127.0.0.1:8000/api/threat-intelligence/${indicatorId}`,
+        )
+
+        if (!response.ok) {
+          throw new Error('Threat intelligence API request failed')
+        }
+
+        const data: ApiThreatIndicatorResponse = await response.json()
+
+        if (!cancelled) {
+          setApiCorrelations(data.correlations)
+          setApiConnected(true)
+        }
+      } catch {
+        if (!cancelled) {
+          setApiCorrelations(null)
+          setApiConnected(false)
+        }
+      }
+    }
+
+    loadCorrelation()
+
+    return () => {
+      cancelled = true
+    }
+  }, [indicatorId])
+
+  const correlations: (CorrelationItem | ApiCorrelationItem)[] =
+    apiCorrelations ?? indicator.correlations
+
+  const correlationLink = (item: CorrelationItem | ApiCorrelationItem) => {
+    if (item.type === 'EVENT') {
+      return `/soc/events/${item.value}`
+    }
+
+    if (item.type === 'ALERT') {
+      return `/alerts/${item.value}`
+    }
+
+    if (item.type === 'INCIDENT') {
+      return `/incidents/${item.value}`
+    }
+
+    if (item.type === 'ENDPOINT') {
+      return `/endpoints/${item.value}`
+    }
+
+    return null
+  }
 
   return (
     <div className="page-shell">
@@ -525,35 +603,60 @@ export default function ThreatIntelligenceDetails() {
             </div>
 
             <div className="ti-detail-correlation">
-              {indicator.correlations.map((item, index) => (
-                <div
-                  className="ti-detail-correlation-row"
-                  key={`${item.value}-${index}`}
-                >
-                  <div className="ti-detail-correlation-type">
-                    {item.type === 'INCIDENT' && <ShieldAlert size={14} />}
-                    {item.type === 'ALERT' && <AlertTriangle size={14} />}
-                    {item.type === 'ENDPOINT' && <Network size={14} />}
-                    {item.type === 'FILE' && <Hash size={14} />}
-                    {item.type === 'NETWORK' && <Network size={14} />}
+              {correlations.map((item, index) => {
+                const link = correlationLink(item)
 
-                    <span>{item.type}</span>
-                  </div>
-
-                  <div className="ti-detail-correlation-main">
-                    <strong>{item.value}</strong>
-                    <span>{item.context}</span>
-                  </div>
-
+                return (
                   <div
-                    className={severityClass(item.severity)}
+                    className="ti-detail-correlation-row"
+                    key={`${item.value}-${index}`}
                   >
-                    {item.severity}
-                  </div>
+                    <div className="ti-detail-correlation-type">
+                      {item.type === 'INCIDENT' && <ShieldAlert size={14} />}
+                      {item.type === 'ALERT' && <AlertTriangle size={14} />}
+                      {item.type === 'EVENT' && <Network size={14} />}
+                      {item.type === 'ENDPOINT' && <Network size={14} />}
+                      {item.type === 'FILE' && <Hash size={14} />}
+                      {item.type === 'NETWORK' && <Network size={14} />}
 
-                  <time>{item.time}</time>
-                </div>
-              ))}
+                      <span>{item.type}</span>
+                    </div>
+
+                    <div className="ti-detail-correlation-main">
+                      {link ? (
+                        <Link to={link}>
+                          <strong>{item.value}</strong>
+                        </Link>
+                      ) : (
+                        <strong>{item.value}</strong>
+                      )}
+                      <span>{item.context}</span>
+                    </div>
+
+                    <div className={severityClass(item.severity)}>
+                      {item.severity}
+                    </div>
+
+                    <time>{item.time}</time>
+                  </div>
+                )
+              })}
+            </div>
+
+            <div
+              className="ti-detail-correlation-source"
+              style={{
+                marginTop: '14px',
+                padding: '10px 12px',
+                border: '1px solid rgba(71, 85, 105, 0.35)',
+                borderRadius: '10px',
+                color: '#64748b',
+                fontSize: '12px',
+              }}
+            >
+              {apiConnected
+                ? 'BACKEND CONNECTED — correlation data is loaded from the CyberSentinel API.'
+                : 'DEMO DATA — backend correlation data is unavailable.'}
             </div>
           </section>
 

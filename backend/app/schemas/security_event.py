@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Optional
 
 from pydantic import BaseModel, ConfigDict
 
@@ -13,6 +14,8 @@ class SecurityEventBase(BaseModel):
     asset: str
     source: str
     confidence: int
+    alert_id: Optional[str] = None
+    incident_id: Optional[str] = None
 
 
 class SecurityEventResponse(SecurityEventBase):
