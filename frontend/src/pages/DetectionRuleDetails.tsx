@@ -20,13 +20,6 @@ import { Link, useParams } from 'react-router-dom'
 type RuleSeverity = 'INFO' | 'WARNING' | 'HIGH'
 type RuleStatus = 'ENABLED' | 'DISABLED'
 
-type ApiDetectionRule = {
-  id: string
-  event_ids: string[]
-  alert_ids: string[]
-  incident_ids: string[]
-}
-
 type DetectionRuleDetailsData = {
   id: string
   name: string
@@ -437,51 +430,106 @@ const detectionRuleDetails: Record<
   },
 }
 
+type RuleAction = {
+  id: number
+  action_id: string
+  rule_id: string
+  action: string
+  status: string
+  analyst: string
+  created_at: string
+}
+
+type RuleState = {
+  rule_id: string
+  status: RuleStatus
+  source: string
+}
+
+const API_BASE_URL = 'http://127.0.0.1:8000'
+
+const RESPONSE_ACTIONS = [
+  { key: 'ENABLE_RULE', label: 'Enable Rule' },
+  { key: 'DISABLE_RULE', label: 'Disable Rule' },
+  { key: 'TEST_RULE', label: 'Test Rule' },
+  { key: 'REVIEW_RULE', label: 'Review Rule' },
+] as const
+
 function DetectionRuleDetails() {
   const { ruleId } = useParams()
+  const [backendState, setBackendState] = useState<RuleState | null>(null)
+  const [actions, setActions] = useState<RuleAction[]>([])
+  const [actionMessage, setActionMessage] = useState('')
+  const [actionLoading, setActionLoading] = useState(false)
+  const [backendConnected, setBackendConnected] = useState(false)
+
+  const loadBackendData = async () => {
+    if (!ruleId) return
+
+    try {
+      const [stateResponse, actionsResponse] = await Promise.all([
+        fetch(`${API_BASE_URL}/api/detection-rule-actions/${ruleId}/state`),
+        fetch(`${API_BASE_URL}/api/detection-rule-actions/${ruleId}/actions`),
+      ])
+
+      if (!stateResponse.ok || !actionsResponse.ok) {
+        throw new Error('Detection rule backend unavailable')
+      }
+
+      const stateData = (await stateResponse.json()) as RuleState
+      const actionsData = (await actionsResponse.json()) as RuleAction[]
+
+      setBackendState(stateData)
+      setActions(actionsData)
+      setBackendConnected(true)
+    } catch {
+      setBackendConnected(false)
+    }
+  }
+
+  useEffect(() => {
+    void loadBackendData()
+  }, [ruleId])
+
+  const executeAction = async (action: string) => {
+    if (!ruleId) return
+
+    setActionLoading(true)
+    setActionMessage('')
+
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/api/detection-rule-actions/${ruleId}/actions`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action,
+            analyst: 'SOC Analyst',
+          }),
+        },
+      )
+
+      if (!response.ok) {
+        const errorBody = await response.json().catch(() => null)
+        throw new Error(errorBody?.detail ?? 'Detection rule action failed')
+      }
+
+      const created = (await response.json()) as RuleAction
+      setActionMessage(`${action.replaceAll('_', ' ')} completed — ${created.status}`)
+      await loadBackendData()
+    } catch (error) {
+      setActionMessage(
+        error instanceof Error ? error.message : 'Detection rule action failed',
+      )
+    } finally {
+      setActionLoading(false)
+    }
+  }
 
   const rule = ruleId
     ? detectionRuleDetails[ruleId]
     : undefined
-
-  const [correlation, setCorrelation] = useState<ApiDetectionRule | null>(null)
-  const [apiOnline, setApiOnline] = useState(false)
-
-  useEffect(() => {
-    if (!ruleId) return
-
-    let cancelled = false
-
-    const loadCorrelation = async () => {
-      try {
-        const response = await fetch(
-          `http://127.0.0.1:8000/api/detection-rules/${ruleId}`,
-        )
-
-        if (!response.ok) {
-          throw new Error('Detection rule request failed')
-        }
-
-        const data: ApiDetectionRule = await response.json()
-
-        if (!cancelled) {
-          setCorrelation(data)
-          setApiOnline(true)
-        }
-      } catch {
-        if (!cancelled) {
-          setCorrelation(null)
-          setApiOnline(false)
-        }
-      }
-    }
-
-    loadCorrelation()
-
-    return () => {
-      cancelled = true
-    }
-  }, [ruleId])
 
   if (!rule) {
     return (
@@ -508,8 +556,9 @@ function DetectionRuleDetails() {
     )
   }
 
+  const effectiveStatus = backendState?.status ?? rule.status
   const severityClass = rule.severity.toLowerCase()
-  const statusClass = rule.status.toLowerCase()
+  const statusClass = effectiveStatus.toLowerCase()
 
   return (
     <div className="page-container">
@@ -538,13 +587,13 @@ function DetectionRuleDetails() {
         <div
           className={`detection-rule-detail-status detection-rule-detail-status-${statusClass}`}
         >
-          {rule.status === 'ENABLED' ? (
+          {effectiveStatus === 'ENABLED' ? (
             <CheckCircle2 size={14} />
           ) : (
             <AlertTriangle size={14} />
           )}
 
-          {rule.status}
+          {effectiveStatus}
         </div>
       </div>
 
@@ -769,115 +818,6 @@ function DetectionRuleDetails() {
       <section className="detection-detail-panel">
         <div className="detection-detail-panel-header">
           <div>
-            <strong>Security Correlation</strong>
-            <span>
-              Events, alerts, and incidents associated with this detection rule
-            </span>
-          </div>
-
-          <Network size={18} />
-        </div>
-
-        <div className="detection-detail-grid">
-          <div className="detection-detail-panel">
-            <div className="detection-detail-panel-header">
-              <div>
-                <strong>Related Events</strong>
-                <span>Security events generated by this rule</span>
-              </div>
-              <Activity size={17} />
-            </div>
-
-            <div className="detection-detail-fields">
-              {correlation?.event_ids.length ? (
-                correlation.event_ids.map((eventId) => (
-                  <div key={eventId}>
-                    <span>EVENT</span>
-                    <Link to={`/soc/events/${eventId}`}>
-                      <strong>{eventId}</strong>
-                    </Link>
-                  </div>
-                ))
-              ) : (
-                <div>
-                  <span>EVENT</span>
-                  <strong>No correlated events</strong>
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div className="detection-detail-panel">
-            <div className="detection-detail-panel-header">
-              <div>
-                <strong>Related Alerts</strong>
-                <span>Alerts generated from this rule</span>
-              </div>
-              <ShieldAlert size={17} />
-            </div>
-
-            <div className="detection-detail-fields">
-              {correlation?.alert_ids.length ? (
-                correlation.alert_ids.map((alertId) => (
-                  <div key={alertId}>
-                    <span>ALERT</span>
-                    <Link to={`/alerts/${alertId}`}>
-                      <strong>{alertId}</strong>
-                    </Link>
-                  </div>
-                ))
-              ) : (
-                <div>
-                  <span>ALERT</span>
-                  <strong>No correlated alerts</strong>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-
-        <div className="detection-detail-panel">
-          <div className="detection-detail-panel-header">
-            <div>
-              <strong>Related Incidents</strong>
-              <span>Investigation cases associated with this rule</span>
-            </div>
-            <AlertTriangle size={17} />
-          </div>
-
-          <div className="detection-detail-fields">
-            {correlation?.incident_ids.length ? (
-              correlation.incident_ids.map((incidentId) => (
-                <div key={incidentId}>
-                  <span>INCIDENT</span>
-                  <Link to={`/incidents/${incidentId}`}>
-                    <strong>{incidentId}</strong>
-                  </Link>
-                </div>
-              ))
-            ) : (
-              <div>
-                <span>INCIDENT</span>
-                <strong>No correlated incidents</strong>
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div className="detection-info-row">
-          <Info size={15} />
-
-          <span>
-            {apiOnline
-              ? 'BACKEND CONNECTED — correlation data is loaded from the CyberSentinel API.'
-              : 'DEMO DATA — the correlation API is currently unavailable.'}
-          </span>
-        </div>
-      </section>
-
-      <section className="detection-detail-panel">
-        <div className="detection-detail-panel-header">
-          <div>
             <strong>Recent Rule Matches</strong>
             <span>
               Latest telemetry events associated with this rule
@@ -961,6 +901,100 @@ function DetectionRuleDetails() {
             </span>
           </div>
         )}
+      </section>
+
+
+      <section className="detection-detail-panel">
+        <div className="detection-detail-panel-header">
+          <div>
+            <strong>Rule Response Controls</strong>
+            <span>Persistent SOC actions recorded by the CyberSentinel API</span>
+          </div>
+
+          <ShieldCheck size={18} />
+        </div>
+
+        <div style={{ display: 'grid', gap: '16px' }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
+            {RESPONSE_ACTIONS.map((item) => (
+              <button
+                key={item.key}
+                type="button"
+                onClick={() => void executeAction(item.key)}
+                disabled={actionLoading}
+                style={{
+                  border: '1px solid rgba(34, 211, 238, 0.25)',
+                  background: 'rgba(8, 18, 35, 0.9)',
+                  color: '#cbd5e1',
+                  borderRadius: '8px',
+                  padding: '10px 14px',
+                  cursor: actionLoading ? 'wait' : 'pointer',
+                  fontWeight: 700,
+                }}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
+
+          {actionMessage && (
+            <div style={{
+              border: '1px solid rgba(34, 211, 238, 0.25)',
+              background: 'rgba(8, 25, 40, 0.8)',
+              borderRadius: '8px',
+              padding: '12px 14px',
+              color: '#67e8f9',
+            }}>
+              {actionMessage}
+            </div>
+          )}
+
+          <div style={{
+            border: '1px solid rgba(148, 163, 184, 0.12)',
+            borderRadius: '10px',
+            padding: '14px',
+          }}>
+            <div style={{ fontSize: '12px', letterSpacing: '0.08em', color: '#64748b', marginBottom: '8px' }}>
+              BACKEND STATUS
+            </div>
+            <div style={{ color: backendConnected ? '#67e8f9' : '#94a3b8', fontWeight: 700 }}>
+              {backendConnected ? 'BACKEND CONNECTED' : 'BACKEND UNAVAILABLE — STATIC DATA'}
+            </div>
+          </div>
+
+          {actions.length > 0 && (
+            <div>
+              <div style={{ fontSize: '12px', letterSpacing: '0.08em', color: '#64748b', marginBottom: '10px' }}>
+                RESPONSE HISTORY
+              </div>
+              <div style={{ display: 'grid', gap: '8px' }}>
+                {actions.map((item) => (
+                  <div
+                    key={item.action_id}
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      gap: '12px',
+                      padding: '10px 12px',
+                      border: '1px solid rgba(148, 163, 184, 0.10)',
+                      borderRadius: '8px',
+                    }}
+                  >
+                    <div>
+                      <strong>{item.action.replaceAll('_', ' ')}</strong>
+                      <div style={{ color: '#64748b', fontSize: '12px', marginTop: '4px' }}>
+                        {item.action_id} · {item.analyst}
+                      </div>
+                    </div>
+                    <span style={{ color: '#67e8f9', fontWeight: 700 }}>
+                      {item.status.replaceAll('_', ' ')}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
       </section>
 
       <section className="detection-detail-grid">

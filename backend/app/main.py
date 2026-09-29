@@ -17,6 +17,7 @@ from app.routes.incident_actions import router as incident_actions_router
 from app.routes.investigation import router as investigation_router
 from app.routes.alert_actions import router as alert_actions_router
 from app.routes.detection_rules import router as detection_rules_router
+from app.routes.detection_rule_actions import router as detection_rule_actions_router
 from app.routes.threat_intelligence import router as threat_intelligence_router
 from app.routes.identity import router as identity_router
 from app.routes.identity_actions import router as identity_actions_router
@@ -56,6 +57,7 @@ app.include_router(incident_actions_router)
 app.include_router(investigation_router)
 app.include_router(alert_actions_router)
 app.include_router(detection_rules_router)
+app.include_router(detection_rule_actions_router)
 app.include_router(threat_intelligence_router)
 app.include_router(identity_router)
 app.include_router(identity_actions_router)
@@ -77,4 +79,4 @@ def health_check():
         "status": "online",
         "service": "CyberSentinel API",
         "version": "1.0.0",
-    }
+        }
