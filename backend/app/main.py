@@ -25,6 +25,7 @@ from app.routes.vulnerabilities import router as vulnerabilities_router
 from app.routes.file_integrity_actions import router as file_integrity_actions_router
 from app.routes.forensics import router as forensics_router
 from app.routes.audit_logs import router as audit_logs_router
+from app.routes.security_posture import router as security_posture_router
 
 
 Base.metadata.create_all(bind=engine)
@@ -34,6 +35,7 @@ app = FastAPI(
     description="Security Operations Center backend for CyberSentinel",
     version="1.0.0",
 )
+
 
 app.add_middleware(
     CORSMiddleware,
@@ -45,6 +47,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 
 app.include_router(events_router)
 app.include_router(alerts_router)
@@ -68,6 +71,7 @@ app.include_router(vulnerabilities_router)
 app.include_router(file_integrity_actions_router)
 app.include_router(forensics_router)
 app.include_router(audit_logs_router)
+app.include_router(security_posture_router)
 
 
 @app.get("/")

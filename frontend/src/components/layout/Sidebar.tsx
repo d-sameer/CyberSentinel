@@ -2,19 +2,20 @@ import {
   Activity,
   AlertTriangle,
   BarChart3,
+  Bug,
+  ClipboardList,
+  Database,
   FileSearch,
   FolderSearch,
+  KeyRound,
   LayoutDashboard,
   Network,
   Settings,
   Shield,
+  ShieldAlert,
   ShieldCheck,
   Terminal,
   Users,
-  ClipboardList,
-  Database,
-  KeyRound,
-  Bug,
 } from 'lucide-react'
 
 import { NavLink } from 'react-router-dom'
@@ -24,6 +25,11 @@ const navigationItems = [
     label: 'Dashboard',
     icon: LayoutDashboard,
     path: '/dashboard',
+  },
+  {
+    label: 'Security Posture',
+    icon: ShieldAlert,
+    path: '/security-posture',
   },
   {
     label: 'Endpoints',

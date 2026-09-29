@@ -11,6 +11,7 @@ import Sidebar from './components/layout/Sidebar'
 import Topbar from './components/layout/Topbar'
 
 import Dashboard from './pages/Dashboard'
+import SecurityPosture from './pages/SecurityPosture'
 import Endpoints from './pages/Endpoints'
 import EndpointDetails from './pages/EndpointDetails'
 import Alerts from './pages/Alerts'
@@ -58,6 +59,11 @@ function App() {
               <Route
                 path="/dashboard"
                 element={<Dashboard />}
+              />
+
+              <Route
+                path="/security-posture"
+                element={<SecurityPosture />}
               />
 
               <Route
@@ -116,8 +122,8 @@ function App() {
               />
 
               <Route
-              path="/forensics/:evidenceId"
-              element={<ForensicsDetails />}
+                path="/forensics/:evidenceId"
+                element={<ForensicsDetails />}
               />
 
               <Route
@@ -126,68 +132,68 @@ function App() {
               />
 
               <Route
-              path="/audit-logs/:logId"
-              element={<AuditLogDetails />}
+                path="/audit-logs/:logId"
+                element={<AuditLogDetails />}
               />
 
               <Route
-              path="/detection-rules"
-              element={<DetectionRules />}
+                path="/detection-rules"
+                element={<DetectionRules />}
               />
 
               <Route
-              path="/incidents"
-              element={<Incidents />}
+                path="/detection-rules/:ruleId"
+                element={<DetectionRuleDetails />}
               />
 
               <Route
-              path="/incidents/:incidentId"
-              element={<IncidentDetails />}
+                path="/incidents"
+                element={<Incidents />}
               />
 
               <Route
-              path="/threat-intelligence"
-              element={<ThreatIntelligence />}
+                path="/incidents/:incidentId"
+                element={<IncidentDetails />}
               />
 
               <Route
-              path="/threat-intelligence/:indicatorId"
-              element={<ThreatIntelligenceDetails />}
+                path="/threat-intelligence"
+                element={<ThreatIntelligence />}
               />
 
               <Route
-              path="/detection-rules/:ruleId"
-              element={<DetectionRuleDetails />}
+                path="/threat-intelligence/:indicatorId"
+                element={<ThreatIntelligenceDetails />}
               />
 
               <Route
-              path="/identity"
-              element={<Identity />}
+                path="/identity"
+                element={<Identity />}
               />
 
               <Route
-              path="/identity/:eventId"
-              element={<IdentityDetails />}
+                path="/identity/:eventId"
+                element={<IdentityDetails />}
               />
 
               <Route
-              path="/vulnerabilities" 
-              element={<Vulnerabilities />}
+                path="/vulnerabilities"
+                element={<Vulnerabilities />}
               />
 
               <Route
-              path="/vulnerabilities/:vulnerabilityId"
-              element={<VulnerabilityDetails />}
+                path="/vulnerabilities/:vulnerabilityId"
+                element={<VulnerabilityDetails />}
               />
 
-              <Route 
-              path="/soc" 
-              element={<SOC />} 
+              <Route
+                path="/soc"
+                element={<SOC />}
               />
 
-              <Route 
-              path="/soc/events/:eventId" 
-              element={<SOCEventDetails />} 
+              <Route
+                path="/soc/events/:eventId"
+                element={<SOCEventDetails />}
               />
 
               <Route
