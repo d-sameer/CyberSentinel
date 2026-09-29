@@ -12,6 +12,7 @@ import {
   Terminal,
   User,
 } from 'lucide-react'
+import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 
 type EvidenceStatus =
@@ -226,12 +227,112 @@ const evidenceDetails: Record<string, EvidenceDetailsData> = {
   },
 }
 
+
+type ForensicAction = {
+  id: number
+  action_id: string
+  evidence_id: string
+  action: string
+  status: string
+  analyst: string
+  created_at: string
+}
+
+const FORENSIC_ACTION_LABELS: Record<string, string> = {
+  START_ANALYSIS: 'ANALYSIS STARTED',
+  PRESERVE_EVIDENCE: 'EVIDENCE PRESERVED',
+  ESCALATE_EVIDENCE: 'ESCALATION REQUESTED',
+  MARK_VERIFIED: 'VERIFIED',
+}
+
+function formatActionDate(value: string) {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  return date.toLocaleString()
+}
+
 function ForensicsDetails() {
   const { evidenceId } = useParams()
 
   const evidence = evidenceId
     ? evidenceDetails[evidenceId]
     : undefined
+
+  const [actions, setActions] = useState<ForensicAction[]>([])
+  const [loadingActions, setLoadingActions] = useState(false)
+  const [submittingAction, setSubmittingAction] = useState<string | null>(null)
+  const [backendStatus, setBackendStatus] = useState<'BACKEND CONNECTED' | 'DEMO DATA'>('DEMO DATA')
+  const [actionError, setActionError] = useState('')
+
+  useEffect(() => {
+    if (!evidenceId) return
+
+    const loadActions = async () => {
+      setLoadingActions(true)
+      setActionError('')
+
+      try {
+        const response = await fetch(
+          `http://127.0.0.1:8000/api/forensics/${evidenceId}/actions`,
+        )
+
+        if (!response.ok) {
+          throw new Error('Unable to load forensic response history')
+        }
+
+        const data: ForensicAction[] = await response.json()
+        setActions(data)
+        setBackendStatus('BACKEND CONNECTED')
+      } catch {
+        setActions([])
+        setBackendStatus('DEMO DATA')
+      } finally {
+        setLoadingActions(false)
+      }
+    }
+
+    loadActions()
+  }, [evidenceId])
+
+  const submitAction = async (action: string) => {
+    if (!evidenceId) return
+
+    setSubmittingAction(action)
+    setActionError('')
+
+    try {
+      const response = await fetch(
+        `http://127.0.0.1:8000/api/forensics/${evidenceId}/actions`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            action,
+            analyst: 'SOC Analyst',
+          }),
+        },
+      )
+
+      if (!response.ok) {
+        const detail = await response.text()
+        throw new Error(detail || 'Unable to record forensic response action')
+      }
+
+      const created: ForensicAction = await response.json()
+      setActions((current) => [created, ...current])
+      setBackendStatus('BACKEND CONNECTED')
+    } catch (error) {
+      setActionError(
+        error instanceof Error
+          ? error.message
+          : 'Unable to record forensic response action',
+      )
+    } finally {
+      setSubmittingAction(null)
+    }
+  }
 
   if (!evidence) {
     return (
@@ -842,6 +943,210 @@ function ForensicsDetails() {
 
         </div>
 
+      </section>
+
+      {/* =========================================
+          RESPONSE WORKFLOW
+          ========================================= */}
+
+      <section className="forensics-detail-panel forensics-response-panel">
+        <div className="forensics-detail-panel-header">
+          <div>
+            <strong>Response Workflow</strong>
+            <span>
+              Persistent analyst actions for forensic evidence handling
+            </span>
+          </div>
+
+          <ShieldAlert size={18} />
+        </div>
+
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '12px',
+            marginBottom: '18px',
+            padding: '12px 14px',
+            border: '1px solid rgba(148, 163, 184, 0.14)',
+            borderRadius: '10px',
+            background: 'rgba(15, 23, 42, 0.55)',
+          }}
+        >
+          <div>
+            <div
+              style={{
+                fontSize: '11px',
+                letterSpacing: '0.12em',
+                color: '#94a3b8',
+              }}
+            >
+              RESPONSE API
+            </div>
+            <strong
+              style={{
+                display: 'block',
+                marginTop: '4px',
+                fontSize: '12px',
+              }}
+            >
+              {backendStatus}
+            </strong>
+          </div>
+
+          <div
+            style={{
+              fontSize: '11px',
+              color: '#94a3b8',
+              textAlign: 'right',
+            }}
+          >
+            Analyst: SOC Analyst
+          </div>
+        </div>
+
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+            gap: '10px',
+          }}
+        >
+          {[
+            ['START_ANALYSIS', 'Start Analysis'],
+            ['PRESERVE_EVIDENCE', 'Preserve Evidence'],
+            ['ESCALATE_EVIDENCE', 'Escalate Evidence'],
+            ['MARK_VERIFIED', 'Mark Verified'],
+          ].map(([action, label]) => (
+            <button
+              key={action}
+              type="button"
+              onClick={() => submitAction(action)}
+              disabled={submittingAction !== null}
+              style={{
+                border: '1px solid rgba(34, 211, 238, 0.25)',
+                background: 'rgba(8, 47, 73, 0.35)',
+                color: '#e2e8f0',
+                borderRadius: '9px',
+                padding: '11px 12px',
+                cursor: submittingAction ? 'wait' : 'pointer',
+                fontSize: '12px',
+                fontWeight: 700,
+              }}
+            >
+              {submittingAction === action ? 'Saving...' : label}
+            </button>
+          ))}
+        </div>
+
+        {actionError && (
+          <div
+            style={{
+              marginTop: '12px',
+              padding: '10px 12px',
+              borderRadius: '8px',
+              border: '1px solid rgba(248, 113, 113, 0.25)',
+              background: 'rgba(127, 29, 29, 0.18)',
+              color: '#fca5a5',
+              fontSize: '12px',
+            }}
+          >
+            {actionError}
+          </div>
+        )}
+
+        <div style={{ marginTop: '22px' }}>
+          <div
+            style={{
+              fontSize: '11px',
+              letterSpacing: '0.12em',
+              color: '#94a3b8',
+              marginBottom: '10px',
+            }}
+          >
+            RESPONSE HISTORY
+          </div>
+
+          {loadingActions ? (
+            <div style={{ color: '#94a3b8', fontSize: '12px' }}>
+              Loading response history...
+            </div>
+          ) : actions.length === 0 ? (
+            <div style={{ color: '#64748b', fontSize: '12px' }}>
+              No response actions recorded for this evidence item.
+            </div>
+          ) : (
+            <div
+              style={{
+                display: 'grid',
+                gap: '8px',
+              }}
+            >
+              {actions.map((item) => (
+                <div
+                  key={item.action_id}
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: '1fr auto',
+                    gap: '12px',
+                    alignItems: 'center',
+                    padding: '11px 12px',
+                    border: '1px solid rgba(148, 163, 184, 0.12)',
+                    borderRadius: '9px',
+                    background: 'rgba(15, 23, 42, 0.45)',
+                  }}
+                >
+                  <div>
+                    <strong
+                      style={{
+                        display: 'block',
+                        fontSize: '12px',
+                        color: '#e2e8f0',
+                      }}
+                    >
+                      {FORENSIC_ACTION_LABELS[item.action] ?? item.status}
+                    </strong>
+
+                    <span
+                      style={{
+                        display: 'block',
+                        marginTop: '4px',
+                        fontSize: '11px',
+                        color: '#94a3b8',
+                      }}
+                    >
+                      {item.action_id} · {item.analyst} ·{' '}
+                      {formatActionDate(item.created_at)}
+                    </span>
+                  </div>
+
+                  <span
+                    style={{
+                      fontSize: '10px',
+                      fontWeight: 800,
+                      letterSpacing: '0.08em',
+                      color: '#67e8f9',
+                    }}
+                  >
+                    {item.status}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div
+          style={{
+            marginTop: '16px',
+            fontSize: '11px',
+            color: '#64748b',
+          }}
+        >
+          These actions record the analyst workflow in CyberSentinel. They do
+          not directly alter, delete, or acquire evidence from the endpoint.
+        </div>
       </section>
 
       {/* =========================================
