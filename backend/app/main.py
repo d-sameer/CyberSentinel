@@ -22,6 +22,7 @@ from app.routes.threat_intelligence import router as threat_intelligence_router
 from app.routes.identity import router as identity_router
 from app.routes.identity_actions import router as identity_actions_router
 from app.routes.vulnerabilities import router as vulnerabilities_router
+from app.routes.file_integrity_actions import router as file_integrity_actions_router
 
 
 Base.metadata.create_all(bind=engine)
@@ -62,6 +63,7 @@ app.include_router(threat_intelligence_router)
 app.include_router(identity_router)
 app.include_router(identity_actions_router)
 app.include_router(vulnerabilities_router)
+app.include_router(file_integrity_actions_router)
 
 
 @app.get("/")
@@ -79,4 +81,4 @@ def health_check():
         "status": "online",
         "service": "CyberSentinel API",
         "version": "1.0.0",
-        }
+    }

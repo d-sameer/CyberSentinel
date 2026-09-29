@@ -10,6 +10,7 @@ import {
   ShieldAlert,
   User,
 } from 'lucide-react'
+import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 
 type FileStatus =
@@ -197,10 +198,116 @@ const fileDetails: Record<string, FileDetailsData> = {
   },
 }
 
+
+type FileAction = {
+  id: number
+  action_id: string
+  file_id: string
+  action: string
+  status: string
+  analyst: string
+  created_at: string
+}
+
+const FILE_ACTION_LABELS: Record<string, string> = {
+  INVESTIGATE: 'INVESTIGATION STARTED',
+  PRESERVE_EVIDENCE: 'EVIDENCE PRESERVED',
+  QUARANTINE_FILE: 'QUARANTINE REQUESTED',
+  MARK_REVIEWED: 'REVIEWED',
+}
+
+function formatActionDate(value: string) {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  return date.toLocaleString()
+}
+
 function FileIntegrityDetails() {
   const { fileId } = useParams()
 
   const file = fileId ? fileDetails[fileId] : undefined
+  const [actions, setActions] = useState<FileAction[]>([])
+  const [loadingActions, setLoadingActions] = useState(true)
+  const [submittingAction, setSubmittingAction] = useState<string | null>(null)
+  const [backendStatus, setBackendStatus] = useState<string | null>(null)
+  const [actionError, setActionError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!fileId) return
+
+    let active = true
+
+    async function loadActions() {
+      try {
+        setLoadingActions(true)
+        setActionError(null)
+
+        const response = await fetch(
+          `http://127.0.0.1:8000/api/file-integrity/${fileId}/actions`,
+        )
+
+        if (!response.ok) {
+          throw new Error('Unable to load file response history')
+        }
+
+        const data = await response.json()
+
+        if (active) {
+          setActions(data)
+          setBackendStatus('BACKEND CONNECTED')
+        }
+      } catch {
+        if (active) {
+          setActionError('Backend response history is unavailable.')
+          setBackendStatus('DEMO DATA')
+        }
+      } finally {
+        if (active) setLoadingActions(false)
+      }
+    }
+
+    void loadActions()
+
+    return () => {
+      active = false
+    }
+  }, [fileId])
+
+  async function submitAction(action: string) {
+    if (!fileId) return
+
+    try {
+      setSubmittingAction(action)
+      setActionError(null)
+
+      const response = await fetch(
+        `http://127.0.0.1:8000/api/file-integrity/${fileId}/actions`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            action,
+            analyst: 'SOC Analyst',
+          }),
+        },
+      )
+
+      if (!response.ok) {
+        const detail = await response.text()
+        throw new Error(detail || 'Unable to create file response action')
+      }
+
+      const created = (await response.json()) as FileAction
+      setActions((current) => [created, ...current])
+      setBackendStatus('BACKEND CONNECTED')
+    } catch {
+      setActionError('The response action could not be recorded.')
+    } finally {
+      setSubmittingAction(null)
+    }
+  }
 
   if (!file) {
     return (
@@ -704,6 +811,116 @@ function FileIntegrityDetails() {
 
         </div>
 
+      </section>
+
+      {/* =========================================
+          RESPONSE WORKFLOW
+          ========================================= */}
+
+      <section className="file-detail-panel file-notes-panel">
+        <div className="file-detail-panel-header">
+          <div>
+            <strong>Response Workflow</strong>
+            <span>Record analyst actions against this file event</span>
+          </div>
+          <ShieldAlert size={18} />
+        </div>
+
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginTop: 16 }}>
+          <button
+            type="button"
+            className="file-back-link"
+            onClick={() => void submitAction('INVESTIGATE')}
+            disabled={submittingAction !== null}
+          >
+            {submittingAction === 'INVESTIGATE' ? 'Recording...' : 'Investigate File'}
+          </button>
+
+          <button
+            type="button"
+            className="file-back-link"
+            onClick={() => void submitAction('PRESERVE_EVIDENCE')}
+            disabled={submittingAction !== null}
+          >
+            {submittingAction === 'PRESERVE_EVIDENCE'
+              ? 'Recording...'
+              : 'Preserve Evidence'}
+          </button>
+
+          <button
+            type="button"
+            className="file-back-link"
+            onClick={() => void submitAction('QUARANTINE_FILE')}
+            disabled={submittingAction !== null}
+          >
+            {submittingAction === 'QUARANTINE_FILE'
+              ? 'Recording...'
+              : 'Quarantine File'}
+          </button>
+
+          <button
+            type="button"
+            className="file-back-link"
+            onClick={() => void submitAction('MARK_REVIEWED')}
+            disabled={submittingAction !== null}
+          >
+            {submittingAction === 'MARK_REVIEWED'
+              ? 'Recording...'
+              : 'Mark Reviewed'}
+          </button>
+        </div>
+
+        {backendStatus && (
+          <div style={{ marginTop: 14, fontSize: 12, letterSpacing: 1 }}>
+            {backendStatus}
+          </div>
+        )}
+
+        {actionError && (
+          <div style={{ marginTop: 12, fontSize: 13 }}>
+            {actionError}
+          </div>
+        )}
+
+        <div className="file-notes" style={{ marginTop: 18 }}>
+          <p>
+            Response actions are recorded as analyst workflow events. These
+            actions do not directly delete, restore, or quarantine files on the
+            endpoint.
+          </p>
+        </div>
+
+        <div style={{ marginTop: 18 }}>
+          <div className="file-detail-panel-header" style={{ padding: 0 }}>
+            <div>
+              <strong>Response History</strong>
+              <span>Persistent actions recorded by the CyberSentinel API</span>
+            </div>
+          </div>
+
+          {loadingActions ? (
+            <div style={{ marginTop: 16 }}>Loading response history...</div>
+          ) : actions.length === 0 ? (
+            <div style={{ marginTop: 16 }}>No response actions recorded yet.</div>
+          ) : (
+            <div className="file-timeline" style={{ marginTop: 16 }}>
+              {actions.map((action) => (
+                <div className="file-timeline-item" key={action.action_id}>
+                  <span />
+                  <div>
+                    <strong>
+                      {FILE_ACTION_LABELS[action.action] ?? action.status}
+                    </strong>
+                    <small>
+                      {action.action_id} · {action.analyst} ·{' '}
+                      {formatActionDate(action.created_at)}
+                    </small>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </section>
 
       {/* =========================================
