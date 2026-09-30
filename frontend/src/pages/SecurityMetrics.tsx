@@ -3,7 +3,6 @@ import {
   Activity,
   AlertTriangle,
   BarChart3,
-  CheckCircle2,
   Clock3,
   Database,
   FileBarChart,
@@ -1033,9 +1032,7 @@ export default function SecurityMetrics() {
                     (item) => (
                       <Cell
                         key={`risk-${item.name}`}
-                        fill={getRiskColor(
-                          item.name,
-                        )}
+                        fill={getRiskColor(item.name || 'UNKNOWN')}
                       />
                     ),
                   )}
@@ -1487,3 +1484,5 @@ export default function SecurityMetrics() {
     </div>
   )
 }
+
+
