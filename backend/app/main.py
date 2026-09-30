@@ -2,7 +2,10 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.database import Base, engine
+
 from app.models.compliance import ComplianceControl
+from app.models.risk import Risk
+from app.models.risk_action import RiskAction
 
 from app.routes.alerts import router as alerts_router
 from app.routes.events import router as events_router
@@ -30,6 +33,8 @@ from app.routes.security_posture import router as security_posture_router
 from app.routes.security_metrics import router as security_metrics_router
 from app.routes.compliance import router as compliance_router
 from app.routes.reports import router as reports_router
+from app.routes.risks import router as risks_router
+from app.routes.risk_actions import router as risk_actions_router
 
 
 Base.metadata.create_all(bind=engine)
@@ -67,19 +72,33 @@ app.include_router(incident_actions_router)
 
 app.include_router(investigation_router)
 app.include_router(alert_actions_router)
+
 app.include_router(detection_rules_router)
 app.include_router(detection_rule_actions_router)
+
 app.include_router(threat_intelligence_router)
+
 app.include_router(identity_router)
 app.include_router(identity_actions_router)
+
 app.include_router(vulnerabilities_router)
+
 app.include_router(file_integrity_actions_router)
+
 app.include_router(forensics_router)
+
 app.include_router(audit_logs_router)
+
 app.include_router(security_posture_router)
+
 app.include_router(security_metrics_router)
+
 app.include_router(compliance_router)
+
 app.include_router(reports_router)
+
+app.include_router(risks_router)
+app.include_router(risk_actions_router)
 
 
 @app.get("/")

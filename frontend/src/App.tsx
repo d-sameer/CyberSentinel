@@ -42,6 +42,8 @@ import VulnerabilityDetails from './pages/VulnerabilityDetails'
 import SOC from './pages/SOC'
 import SOCEventDetails from './pages/SOCEventDetails'
 import Reports from './pages/Reports'
+import RiskManagement from './pages/RiskManagement'
+import RiskDetails from './pages/RiskDetails'
 
 function App() {
   return (
@@ -218,6 +220,16 @@ function App() {
               <Route 
                 path="/reports" 
                 element={<Reports />} 
+              />
+
+              <Route
+                path="/risks" 
+                element={<RiskManagement />} 
+              />
+
+              <Route
+                path="/risks/:riskId"
+                element={<RiskDetails />}
               />
 
               <Route

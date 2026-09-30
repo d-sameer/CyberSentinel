@@ -45,6 +45,11 @@ const navigationItems = [
     path: '/reports',
   },
   {
+    label: 'Risk Management',
+    icon: ShieldAlert,
+    path: '/risks',
+  },
+  {
     label: 'Compliance',
     icon: Scale,
     path: '/compliance',
