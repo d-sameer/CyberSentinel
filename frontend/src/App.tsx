@@ -41,6 +41,7 @@ import Vulnerabilities from './pages/Vulnerabilities'
 import VulnerabilityDetails from './pages/VulnerabilityDetails'
 import SOC from './pages/SOC'
 import SOCEventDetails from './pages/SOCEventDetails'
+import Reports from './pages/Reports'
 
 function App() {
   return (
@@ -212,6 +213,11 @@ function App() {
               <Route
                 path="/soc/events/:eventId"
                 element={<SOCEventDetails />}
+              />
+
+              <Route 
+                path="/reports" 
+                element={<Reports />} 
               />
 
               <Route

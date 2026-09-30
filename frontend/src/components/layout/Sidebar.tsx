@@ -7,6 +7,7 @@ import {
   Database,
   FileSearch,
   FileBarChart,
+  FileText,
   FolderSearch,
   KeyRound,
   LayoutDashboard,
@@ -37,6 +38,11 @@ const navigationItems = [
     label: 'Security Metrics',
     icon: FileBarChart,
     path: '/security-metrics',
+  },
+  {
+    label: 'Security Reports',
+    icon: FileText,
+    path: '/reports',
   },
   {
     label: 'Compliance',

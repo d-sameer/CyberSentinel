@@ -29,6 +29,7 @@ from app.routes.audit_logs import router as audit_logs_router
 from app.routes.security_posture import router as security_posture_router
 from app.routes.security_metrics import router as security_metrics_router
 from app.routes.compliance import router as compliance_router
+from app.routes.reports import router as reports_router
 
 
 Base.metadata.create_all(bind=engine)
@@ -78,6 +79,7 @@ app.include_router(audit_logs_router)
 app.include_router(security_posture_router)
 app.include_router(security_metrics_router)
 app.include_router(compliance_router)
+app.include_router(reports_router)
 
 
 @app.get("/")
