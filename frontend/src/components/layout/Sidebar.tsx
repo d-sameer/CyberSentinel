@@ -17,6 +17,7 @@ import {
   ShieldCheck,
   Terminal,
   Users,
+  Scale,
 } from 'lucide-react'
 
 import { NavLink } from 'react-router-dom'
@@ -36,6 +37,11 @@ const navigationItems = [
     label: 'Security Metrics',
     icon: FileBarChart,
     path: '/security-metrics',
+  },
+  {
+    label: 'Compliance',
+    icon: Scale,
+    path: '/compliance',
   },
   {
     label: 'Endpoints',

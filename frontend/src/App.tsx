@@ -13,6 +13,8 @@ import Topbar from './components/layout/Topbar'
 import Dashboard from './pages/Dashboard'
 import SecurityPosture from './pages/SecurityPosture'
 import SecurityMetrics from './pages/SecurityMetrics'
+import Compliance from './pages/Compliance'
+import ComplianceDetails from './pages/ComplianceDetails'
 import Endpoints from './pages/Endpoints'
 import EndpointDetails from './pages/EndpointDetails'
 import Alerts from './pages/Alerts'
@@ -70,6 +72,16 @@ function App() {
               <Route
                 path="/security-metrics"
                 element={<SecurityMetrics />}
+              />
+
+              <Route
+              path="/compliance"
+              element={<Compliance />}
+              />
+
+              <Route
+              path="/compliance/:controlId"
+              element={<ComplianceDetails />}
               />
 
               <Route
