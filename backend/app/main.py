@@ -26,9 +26,11 @@ from app.routes.file_integrity_actions import router as file_integrity_actions_r
 from app.routes.forensics import router as forensics_router
 from app.routes.audit_logs import router as audit_logs_router
 from app.routes.security_posture import router as security_posture_router
+from app.routes.security_metrics import router as security_metrics_router
 
 
 Base.metadata.create_all(bind=engine)
+
 
 app = FastAPI(
     title="CyberSentinel API",
@@ -72,6 +74,7 @@ app.include_router(file_integrity_actions_router)
 app.include_router(forensics_router)
 app.include_router(audit_logs_router)
 app.include_router(security_posture_router)
+app.include_router(security_metrics_router)
 
 
 @app.get("/")

@@ -12,6 +12,7 @@ import Topbar from './components/layout/Topbar'
 
 import Dashboard from './pages/Dashboard'
 import SecurityPosture from './pages/SecurityPosture'
+import SecurityMetrics from './pages/SecurityMetrics'
 import Endpoints from './pages/Endpoints'
 import EndpointDetails from './pages/EndpointDetails'
 import Alerts from './pages/Alerts'
@@ -64,6 +65,11 @@ function App() {
               <Route
                 path="/security-posture"
                 element={<SecurityPosture />}
+              />
+
+              <Route
+                path="/security-metrics"
+                element={<SecurityMetrics />}
               />
 
               <Route

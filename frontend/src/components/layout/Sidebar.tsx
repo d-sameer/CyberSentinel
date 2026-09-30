@@ -6,6 +6,7 @@ import {
   ClipboardList,
   Database,
   FileSearch,
+  FileBarChart,
   FolderSearch,
   KeyRound,
   LayoutDashboard,
@@ -30,6 +31,11 @@ const navigationItems = [
     label: 'Security Posture',
     icon: ShieldAlert,
     path: '/security-posture',
+  },
+  {
+    label: 'Security Metrics',
+    icon: FileBarChart,
+    path: '/security-metrics',
   },
   {
     label: 'Endpoints',
