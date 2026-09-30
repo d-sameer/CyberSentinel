@@ -1,0 +1,40 @@
+# Python cache
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Python virtual environments
+venv/
+.venv/
+env/
+ENV/
+
+# Environment / secrets
+.env
+.env.*
+
+# SQLite databases
+*.db
+*.sqlite
+*.sqlite3
+
+# Node dependencies
+node_modules/
+
+# Frontend build files
+dist/
+.vite/
+
+# Logs
+*.log
+
+# VS Code
+.vscode/
+
+# Other IDE files
+.idea/
+
+# Operating system files
+.DS_Store
+Thumbs.db
