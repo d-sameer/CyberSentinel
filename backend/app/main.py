@@ -6,6 +6,8 @@ from app.database import Base, engine
 from app.models.compliance import ComplianceControl
 from app.models.risk import Risk
 from app.models.risk_action import RiskAction
+from app.models.policy import Policy
+from app.models.policy_action import PolicyAction
 
 from app.routes.alerts import router as alerts_router
 from app.routes.events import router as events_router
@@ -35,6 +37,8 @@ from app.routes.compliance import router as compliance_router
 from app.routes.reports import router as reports_router
 from app.routes.risks import router as risks_router
 from app.routes.risk_actions import router as risk_actions_router
+from app.routes.policies import router as policies_router
+from app.routes.policy_actions import router as policy_actions_router
 
 
 Base.metadata.create_all(bind=engine)
@@ -99,6 +103,9 @@ app.include_router(reports_router)
 
 app.include_router(risks_router)
 app.include_router(risk_actions_router)
+
+app.include_router(policies_router)
+app.include_router(policy_actions_router)
 
 
 @app.get("/")

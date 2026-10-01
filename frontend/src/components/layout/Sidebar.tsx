@@ -2,23 +2,24 @@ import {
   Activity,
   AlertTriangle,
   BarChart3,
+  BookOpenCheck,
   Bug,
   ClipboardList,
   Database,
-  FileSearch,
   FileBarChart,
+  FileSearch,
   FileText,
   FolderSearch,
   KeyRound,
   LayoutDashboard,
   Network,
+  Scale,
   Settings,
   Shield,
   ShieldAlert,
   ShieldCheck,
   Terminal,
   Users,
-  Scale,
 } from 'lucide-react'
 
 import { NavLink } from 'react-router-dom'
@@ -48,6 +49,11 @@ const navigationItems = [
     label: 'Risk Management',
     icon: ShieldAlert,
     path: '/risks',
+  },
+  {
+    label: 'Policy Management',
+    icon: BookOpenCheck,
+    path: '/policies',
   },
   {
     label: 'Compliance',

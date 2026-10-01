@@ -44,6 +44,8 @@ import SOCEventDetails from './pages/SOCEventDetails'
 import Reports from './pages/Reports'
 import RiskManagement from './pages/RiskManagement'
 import RiskDetails from './pages/RiskDetails'
+import PolicyManagement from './pages/PolicyManagement'
+import PolicyDetails from './pages/PolicyDetails'
 
 function App() {
   return (
@@ -78,13 +80,13 @@ function App() {
               />
 
               <Route
-              path="/compliance"
-              element={<Compliance />}
+                path="/compliance"
+                element={<Compliance />}
               />
 
               <Route
-              path="/compliance/:controlId"
-              element={<ComplianceDetails />}
+                path="/compliance/:controlId"
+                element={<ComplianceDetails />}
               />
 
               <Route
@@ -217,19 +219,29 @@ function App() {
                 element={<SOCEventDetails />}
               />
 
-              <Route 
-                path="/reports" 
-                element={<Reports />} 
+              <Route
+                path="/reports"
+                element={<Reports />}
               />
 
               <Route
-                path="/risks" 
-                element={<RiskManagement />} 
+                path="/risks"
+                element={<RiskManagement />}
               />
 
               <Route
                 path="/risks/:riskId"
                 element={<RiskDetails />}
+              />
+
+              <Route
+                path="/policies"
+                element={<PolicyManagement />}
+              />
+
+              <Route
+                path="/policies/:policyId"
+                element={<PolicyDetails />}
               />
 
               <Route
