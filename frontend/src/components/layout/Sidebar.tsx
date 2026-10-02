@@ -56,6 +56,11 @@ const navigationItems = [
     path: '/policies',
   },
   {
+    label: 'Security Exceptions',
+    icon: ShieldAlert,
+    path: '/exceptions',
+  },
+  {
     label: 'Compliance',
     icon: Scale,
     path: '/compliance',

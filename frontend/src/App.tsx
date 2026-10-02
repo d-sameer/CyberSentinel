@@ -46,6 +46,8 @@ import RiskManagement from './pages/RiskManagement'
 import RiskDetails from './pages/RiskDetails'
 import PolicyManagement from './pages/PolicyManagement'
 import PolicyDetails from './pages/PolicyDetails'
+import SecurityExceptions from './pages/SecurityExceptions'
+import SecurityExceptionDetails from './pages/SecurityExceptionDetails'
 
 function App() {
   return (
@@ -242,6 +244,16 @@ function App() {
               <Route
                 path="/policies/:policyId"
                 element={<PolicyDetails />}
+              />
+
+              <Route 
+                path="/exceptions" 
+                element={<SecurityExceptions />} 
+              />
+              
+              <Route
+                path="/exceptions/:exceptionId"
+              element={<SecurityExceptionDetails />}
               />
 
               <Route
