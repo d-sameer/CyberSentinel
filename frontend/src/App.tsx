@@ -48,6 +48,9 @@ import PolicyManagement from './pages/PolicyManagement'
 import PolicyDetails from './pages/PolicyDetails'
 import SecurityExceptions from './pages/SecurityExceptions'
 import SecurityExceptionDetails from './pages/SecurityExceptionDetails'
+import SecurityPlaybooks from './pages/SecurityPlaybooks'
+import SecurityPlaybookDetails from './pages/SecurityPlaybookDetails'
+import SecurityPlaybookExecutionDetails from './pages/SecurityPlaybookExecutionDetails'
 
 function App() {
   return (
@@ -254,6 +257,26 @@ function App() {
               <Route
                 path="/exceptions/:exceptionId"
               element={<SecurityExceptionDetails />}
+              />
+
+              <Route
+                path="/automation"
+                element={<SecurityPlaybooks />}
+              />
+
+              <Route
+                path="/automation/:playbookId"
+                element={<SecurityPlaybookDetails />}
+              />
+
+              <Route
+                path="/automation/:playbookId/executions/:executionId"
+                element={<SecurityPlaybookExecutionDetails />}
+              />
+              
+              <Route
+                path="/automation/:playbookId"
+                element={<SecurityPlaybookDetails />}
               />
 
               <Route

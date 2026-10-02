@@ -61,6 +61,11 @@ const navigationItems = [
     path: '/exceptions',
   },
   {
+    label: 'Security Automation',
+    path: '/automation',
+    icon: Activity,
+  },
+  {
     label: 'Compliance',
     icon: Scale,
     path: '/compliance',

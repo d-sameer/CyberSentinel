@@ -10,13 +10,20 @@ from app.models.policy import Policy
 from app.models.policy_action import PolicyAction
 from app.models.exception import SecurityException
 from app.models.exception_action import SecurityExceptionAction
+from app.models.playbook import SecurityPlaybook
+from app.models.playbook_execution import SecurityPlaybookExecution
+from app.models.playbook_execution_step import (
+    SecurityPlaybookExecutionStep
+)
 
 from app.routes.alerts import router as alerts_router
 from app.routes.events import router as events_router
 from app.routes.endpoints import router as endpoints_router
+
 from app.routes.endpoint_telemetry import (
     router as endpoint_telemetry_router
 )
+
 from app.routes.endpoint_activity import (
     router as endpoint_activity_router
 )
@@ -28,6 +35,7 @@ from app.routes.response_actions import (
 from app.routes.incidents import (
     router as incidents_router
 )
+
 from app.routes.incident_actions import (
     router as incident_actions_router
 )
@@ -116,13 +124,24 @@ from app.routes.exception_actions import (
     router as exception_actions_router
 )
 
+from app.routes.playbooks import (
+    router as playbooks_router
+)
+
+from app.routes.playbook_executions import (
+    router as playbook_executions_router
+)
+
 
 Base.metadata.create_all(bind=engine)
 
 
 app = FastAPI(
     title="CyberSentinel API",
-    description="Security Operations Center backend for CyberSentinel",
+    description=(
+        "Security Operations Center backend "
+        "for CyberSentinel"
+    ),
     version="1.0.0",
 )
 
@@ -145,21 +164,37 @@ app.include_router(alerts_router)
 
 app.include_router(endpoints_router)
 
-app.include_router(endpoint_telemetry_router)
+app.include_router(
+    endpoint_telemetry_router
+)
 
-app.include_router(endpoint_activity_router)
+app.include_router(
+    endpoint_activity_router
+)
 
-app.include_router(response_actions_router)
+app.include_router(
+    response_actions_router
+)
 
-app.include_router(incidents_router)
+app.include_router(
+    incidents_router
+)
 
-app.include_router(incident_actions_router)
+app.include_router(
+    incident_actions_router
+)
 
-app.include_router(investigation_router)
+app.include_router(
+    investigation_router
+)
 
-app.include_router(alert_actions_router)
+app.include_router(
+    alert_actions_router
+)
 
-app.include_router(detection_rules_router)
+app.include_router(
+    detection_rules_router
+)
 
 app.include_router(
     detection_rule_actions_router
@@ -169,21 +204,29 @@ app.include_router(
     threat_intelligence_router
 )
 
-app.include_router(identity_router)
+app.include_router(
+    identity_router
+)
 
 app.include_router(
     identity_actions_router
 )
 
-app.include_router(vulnerabilities_router)
+app.include_router(
+    vulnerabilities_router
+)
 
 app.include_router(
     file_integrity_actions_router
 )
 
-app.include_router(forensics_router)
+app.include_router(
+    forensics_router
+)
 
-app.include_router(audit_logs_router)
+app.include_router(
+    audit_logs_router
+)
 
 app.include_router(
     security_posture_router
@@ -193,17 +236,25 @@ app.include_router(
     security_metrics_router
 )
 
-app.include_router(compliance_router)
+app.include_router(
+    compliance_router
+)
 
-app.include_router(reports_router)
+app.include_router(
+    reports_router
+)
 
-app.include_router(risks_router)
+app.include_router(
+    risks_router
+)
 
 app.include_router(
     risk_actions_router
 )
 
-app.include_router(policies_router)
+app.include_router(
+    policies_router
+)
 
 app.include_router(
     policy_actions_router
@@ -215,6 +266,14 @@ app.include_router(
 
 app.include_router(
     exception_actions_router
+)
+
+app.include_router(
+    playbooks_router
+)
+
+app.include_router(
+    playbook_executions_router
 )
 
 
