@@ -51,6 +51,8 @@ import SecurityExceptionDetails from './pages/SecurityExceptionDetails'
 import SecurityPlaybooks from './pages/SecurityPlaybooks'
 import SecurityPlaybookDetails from './pages/SecurityPlaybookDetails'
 import SecurityPlaybookExecutionDetails from './pages/SecurityPlaybookExecutionDetails'
+import SecurityIntegrations from './pages/SecurityIntegrations'
+import SecurityIntegrationDetails from './pages/SecurityIntegrationDetails'
 
 function App() {
   return (
@@ -277,6 +279,16 @@ function App() {
               <Route
                 path="/automation/:playbookId"
                 element={<SecurityPlaybookDetails />}
+              />
+
+              <Route
+                path="/integrations/:integrationId"
+                element={<SecurityIntegrationDetails />}
+              />
+
+              <Route
+                path="/integrations"
+                element={<SecurityIntegrations />}
               />
 
               <Route

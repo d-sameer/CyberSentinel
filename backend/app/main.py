@@ -10,6 +10,7 @@ from app.models.policy import Policy
 from app.models.policy_action import PolicyAction
 from app.models.exception import SecurityException
 from app.models.exception_action import SecurityExceptionAction
+from app.models.integration import SecurityIntegration
 from app.models.playbook import SecurityPlaybook
 from app.models.playbook_execution import SecurityPlaybookExecution
 from app.models.playbook_execution_step import (
@@ -123,6 +124,9 @@ from app.routes.exceptions import (
 from app.routes.exception_actions import (
     router as exception_actions_router
 )
+
+from app.routes.integrations import router as integrations_router
+from app.routes.integration_actions import router as integration_actions_router
 
 from app.routes.playbooks import (
     router as playbooks_router
@@ -267,6 +271,9 @@ app.include_router(
 app.include_router(
     exception_actions_router
 )
+
+app.include_router(integrations_router)
+app.include_router(integration_actions_router)
 
 app.include_router(
     playbooks_router

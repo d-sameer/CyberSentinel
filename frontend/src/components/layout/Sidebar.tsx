@@ -4,6 +4,7 @@ import {
   BarChart3,
   BookOpenCheck,
   Bug,
+  Cable,
   ClipboardList,
   Database,
   FileBarChart,
@@ -64,6 +65,11 @@ const navigationItems = [
     label: 'Security Automation',
     path: '/automation',
     icon: Activity,
+  },
+  {
+    label: 'Security Integrations',
+    icon: Cable,
+    path: '/integrations',
   },
   {
     label: 'Compliance',
