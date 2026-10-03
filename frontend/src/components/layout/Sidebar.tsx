@@ -72,6 +72,11 @@ const navigationItems = [
     path: '/integrations',
   },
   {
+    label: 'Security Architecture',
+    icon: Network,
+    path: '/architecture',
+  },
+  {
     label: 'Compliance',
     icon: Scale,
     path: '/compliance',

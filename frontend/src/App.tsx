@@ -53,6 +53,8 @@ import SecurityPlaybookDetails from './pages/SecurityPlaybookDetails'
 import SecurityPlaybookExecutionDetails from './pages/SecurityPlaybookExecutionDetails'
 import SecurityIntegrations from './pages/SecurityIntegrations'
 import SecurityIntegrationDetails from './pages/SecurityIntegrationDetails'
+import SecurityArchitecture from './pages/SecurityArchitecture'
+import SecurityArchitectureDetails from './pages/SecurityArchitectureDetails'
 
 function App() {
   return (
@@ -289,6 +291,16 @@ function App() {
               <Route
                 path="/integrations"
                 element={<SecurityIntegrations />}
+              />
+
+              <Route
+                path="/architecture"
+                element={<SecurityArchitecture />}
+              />
+
+              <Route
+                path="/architecture/:architectureId"
+                element={<SecurityArchitectureDetails />}
               />
 
               <Route
