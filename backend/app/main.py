@@ -17,6 +17,7 @@ from app.models.playbook_execution_step import (
     SecurityPlaybookExecutionStep
 )
 from app.models.architecture import SecurityArchitecture
+from app.models.asset import SecurityAsset
 
 from app.routes.alerts import router as alerts_router
 from app.routes.events import router as events_router
@@ -138,6 +139,7 @@ from app.routes.playbook_executions import (
 )
 
 from app.routes.architecture import router as architecture_router
+from app.routes.assets import router as assets_router
 
 Base.metadata.create_all(bind=engine)
 
@@ -286,6 +288,7 @@ app.include_router(
 )
 
 app.include_router(architecture_router)
+app.include_router(assets_router)
 
 
 @app.get("/")

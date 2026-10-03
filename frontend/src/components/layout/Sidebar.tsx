@@ -3,6 +3,7 @@ import {
   AlertTriangle,
   BarChart3,
   BookOpenCheck,
+  Boxes,
   Bug,
   Cable,
   ClipboardList,
@@ -75,6 +76,11 @@ const navigationItems = [
     label: 'Security Architecture',
     icon: Network,
     path: '/architecture',
+  },
+  {
+    label: 'Security Asset Inventory',
+    icon: Boxes,
+    path: '/assets',
   },
   {
     label: 'Compliance',

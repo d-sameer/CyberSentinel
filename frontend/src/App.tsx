@@ -55,6 +55,8 @@ import SecurityIntegrations from './pages/SecurityIntegrations'
 import SecurityIntegrationDetails from './pages/SecurityIntegrationDetails'
 import SecurityArchitecture from './pages/SecurityArchitecture'
 import SecurityArchitectureDetails from './pages/SecurityArchitectureDetails'
+import SecurityAssets from './pages/SecurityAssets'
+import SecurityAssetDetails from './pages/SecurityAssetDetails'
 
 function App() {
   return (
@@ -253,14 +255,14 @@ function App() {
                 element={<PolicyDetails />}
               />
 
-              <Route 
-                path="/exceptions" 
-                element={<SecurityExceptions />} 
+              <Route
+                path="/exceptions"
+                element={<SecurityExceptions />}
               />
-              
+
               <Route
                 path="/exceptions/:exceptionId"
-              element={<SecurityExceptionDetails />}
+                element={<SecurityExceptionDetails />}
               />
 
               <Route
@@ -277,20 +279,15 @@ function App() {
                 path="/automation/:playbookId/executions/:executionId"
                 element={<SecurityPlaybookExecutionDetails />}
               />
-              
+
               <Route
-                path="/automation/:playbookId"
-                element={<SecurityPlaybookDetails />}
+                path="/integrations"
+                element={<SecurityIntegrations />}
               />
 
               <Route
                 path="/integrations/:integrationId"
                 element={<SecurityIntegrationDetails />}
-              />
-
-              <Route
-                path="/integrations"
-                element={<SecurityIntegrations />}
               />
 
               <Route
@@ -301,6 +298,16 @@ function App() {
               <Route
                 path="/architecture/:architectureId"
                 element={<SecurityArchitectureDetails />}
+              />
+
+              <Route
+                path="/assets"
+                element={<SecurityAssets />}
+              />
+
+              <Route
+                path="/assets/:assetId"
+                element={<SecurityAssetDetails />}
               />
 
               <Route
