@@ -57,6 +57,8 @@ import SecurityArchitecture from './pages/SecurityArchitecture'
 import SecurityArchitectureDetails from './pages/SecurityArchitectureDetails'
 import SecurityAssets from './pages/SecurityAssets'
 import SecurityAssetDetails from './pages/SecurityAssetDetails'
+import SecurityConfigurations from './pages/SecurityConfigurations'
+import SecurityConfigurationDetails from './pages/SecurityConfigurationDetails'
 
 function App() {
   return (
@@ -308,6 +310,16 @@ function App() {
               <Route
                 path="/assets/:assetId"
                 element={<SecurityAssetDetails />}
+              />
+
+              <Route
+                path="/security-configurations"
+                element={<SecurityConfigurations />}
+              />
+
+              <Route
+                path="/security-configurations/:configurationId"
+                element={<SecurityConfigurationDetails />}
               />
 
               <Route

@@ -22,6 +22,7 @@ import {
   ShieldCheck,
   Terminal,
   Users,
+  Settings2,
 } from 'lucide-react'
 
 import { NavLink } from 'react-router-dom'
@@ -81,6 +82,11 @@ const navigationItems = [
     label: 'Security Asset Inventory',
     icon: Boxes,
     path: '/assets',
+  },
+  {
+    label: 'Security Configuration',
+    icon: Settings2,
+    path: '/security-configurations',
   },
   {
     label: 'Compliance',
