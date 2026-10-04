@@ -59,6 +59,8 @@ import SecurityAssets from './pages/SecurityAssets'
 import SecurityAssetDetails from './pages/SecurityAssetDetails'
 import SecurityConfigurations from './pages/SecurityConfigurations'
 import SecurityConfigurationDetails from './pages/SecurityConfigurationDetails'
+import SecurityChanges from './pages/SecurityChanges'
+import SecurityChangeDetails from './pages/SecurityChangeDetails'
 
 function App() {
   return (
@@ -320,6 +322,16 @@ function App() {
               <Route
                 path="/security-configurations/:configurationId"
                 element={<SecurityConfigurationDetails />}
+              />
+
+              <Route
+                path="/security-changes"
+                element={<SecurityChanges />}
+              />
+
+              <Route
+                path="/security-changes/:changeId"
+                element={<SecurityChangeDetails />}
               />
 
               <Route

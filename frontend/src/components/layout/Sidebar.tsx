@@ -23,6 +23,7 @@ import {
   Terminal,
   Users,
   Settings2,
+  FileCog,
 } from 'lucide-react'
 
 import { NavLink } from 'react-router-dom'
@@ -87,6 +88,11 @@ const navigationItems = [
     label: 'Security Configuration',
     icon: Settings2,
     path: '/security-configurations',
+  },
+  {
+    label: 'Security Change Management',
+    icon: FileCog,
+    path: '/security-changes',
   },
   {
     label: 'Compliance',

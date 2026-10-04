@@ -22,6 +22,8 @@ from app.models.security_configuration import SecurityConfiguration
 from app.models.security_configuration_action import (
     SecurityConfigurationAction,
 )
+from app.models.security_change import SecurityChange
+from app.models.security_change_action import SecurityChangeAction
 
 from app.routes.alerts import router as alerts_router
 from app.routes.events import router as events_router
@@ -147,6 +149,10 @@ from app.routes.assets import router as assets_router
 from app.routes.security_configurations import router as security_configurations_router
 from app.routes.security_configuration_actions import (
     router as security_configuration_actions_router,
+)
+from app.routes.security_changes import router as security_changes_router
+from app.routes.security_change_actions import (
+    router as security_change_actions_router,
 )
 
 Base.metadata.create_all(bind=engine)
@@ -300,6 +306,10 @@ app.include_router(assets_router)
 app.include_router(security_configurations_router)
 app.include_router(
     security_configuration_actions_router
+)
+app.include_router(security_changes_router)
+app.include_router(
+    security_change_actions_router
 )
 
 
