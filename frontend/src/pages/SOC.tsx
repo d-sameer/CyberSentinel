@@ -90,6 +90,20 @@ type ApiIncident = {
 
 const API_BASE = 'http://127.0.0.1:8001'
 
+function getNetworkCollection(payload: unknown): unknown[] | undefined {
+  if (Array.isArray(payload)) return payload
+  if (!payload || typeof payload !== 'object') return undefined
+
+  const record = payload as Record<string, unknown>
+  for (const key of ['connections', 'items', 'results', 'data']) {
+    const candidate = record[key]
+    const collection = getNetworkCollection(candidate)
+    if (collection) return collection
+  }
+
+  return undefined
+}
+
 function formatTime(value: string) {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return value
@@ -229,6 +243,8 @@ export default function SOC() {
   const [alerts, setAlerts] = useState<ApiAlert[]>([])
   const [endpoints, setEndpoints] = useState<ApiEndpoint[]>([])
   const [incidents, setIncidents] = useState<ApiIncident[]>([])
+  const [networkConnections, setNetworkConnections] = useState(0)
+  const [refreshKey, setRefreshKey] = useState(0)
   const [apiState, setApiState] = useState<'loading' | 'connected' | 'partial' | 'offline'>('loading')
   const [lastUpdated, setLastUpdated] = useState('—')
 
@@ -253,6 +269,10 @@ export default function SOC() {
           if (!response.ok) throw new Error('Incidents API request failed')
           return (await response.json()) as ApiIncident[]
         }),
+        fetch(`${API_BASE}/api/network`).then(async (response) => {
+          if (!response.ok) throw new Error('Network API request failed')
+          return (await response.json()) as unknown
+        }),
       ])
 
       if (cancelled) return
@@ -261,6 +281,7 @@ export default function SOC() {
       const alertsResult = results[1]
       const endpointsResult = results[2]
       const incidentsResult = results[3]
+      const networkResult = results[4]
       const successful = results.filter((result) => result.status === 'fulfilled').length
 
       if (eventsResult.status === 'fulfilled') {
@@ -294,8 +315,15 @@ export default function SOC() {
         setIncidents([])
       }
 
+      if (networkResult.status === 'fulfilled') {
+        const collection = getNetworkCollection(networkResult.value)
+        setNetworkConnections(collection?.length ?? 0)
+      } else {
+        setNetworkConnections(0)
+      }
+
       setApiState(
-        successful === 4
+        successful === 5
           ? 'connected'
           : successful > 0
             ? 'partial'
@@ -312,7 +340,7 @@ export default function SOC() {
       cancelled = true
       window.clearInterval(interval)
     }
-  }, [])
+  }, [refreshKey])
 
   const activeThreats = useMemo(
     () =>
@@ -474,7 +502,7 @@ export default function SOC() {
         </div>
 
         <div className="soc-header-status">
-          <div className="soc-status-card">
+          <div className={`soc-status-card ${apiState}`}>
             <span className="soc-status-dot" />
             <div>
               <strong>
@@ -533,8 +561,8 @@ export default function SOC() {
         <MetricCard
           icon={<Network size={21} />}
           label="Network Connections"
-          value="—"
-          detail="Network telemetry API pending"
+          value={String(networkConnections)}
+          detail="Connections from network service"
           tone="blue"
         />
 
@@ -637,9 +665,14 @@ export default function SOC() {
               Showing latest {latestEvents.length} of {events.length} security
               events
             </span>
-            <Link to="/soc" className="soc-event-action">
-              Refresh dashboard →
-            </Link>
+            <button
+              type="button"
+              className="soc-refresh-button"
+              onClick={() => setRefreshKey((current) => current + 1)}
+              aria-label="Refresh SOC dashboard data"
+            >
+              Refresh data ↻
+            </button>
           </div>
         </section>
 
