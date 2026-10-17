@@ -17340,3 +17340,654 @@
   background: rgba(245, 158, 11, 0.06);
   color: #f59e0b;
 }
+
+/* =========================================
+   ACCESS GOVERNANCE
+   ========================================= */
+
+.access-governance-header {
+  margin-bottom: 28px;
+}
+
+.access-governance-header .page-description {
+  max-width: 760px;
+}
+
+/* Header actions */
+
+.access-governance-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 14px;
+  border-radius: 8px;
+  font: inherit;
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    background 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease;
+}
+
+.access-governance-action-primary {
+  color: #071018;
+  border: 1px solid #22d3ee;
+  background: #22d3ee;
+}
+
+.access-governance-action-primary:hover {
+  background: #67e8f9;
+  border-color: #67e8f9;
+}
+
+.access-governance-action-secondary {
+  color: #94a3b8;
+  border: 1px solid rgba(148, 163, 184, 0.1);
+  background: rgba(15, 23, 42, 0.7);
+}
+
+.access-governance-action-secondary:hover {
+  color: #e2e8f0;
+  border-color: rgba(34, 211, 238, 0.2);
+}
+
+/* Governance cards */
+
+.access-governance-stats {
+  margin-bottom: 14px;
+}
+
+.access-governance-stat {
+  min-height: 126px;
+}
+
+.access-governance-stat .stat-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.access-governance-stat .stat-card-value {
+  margin-top: 18px;
+}
+
+.access-governance-stat .stat-card-description {
+  margin-top: 5px;
+}
+
+/* Main panel */
+
+.access-governance-panel {
+  overflow: hidden;
+  border: 1px solid rgba(148, 163, 184, 0.09);
+  border-radius: 12px;
+  background:
+    linear-gradient(
+      145deg,
+      rgba(15, 23, 42, 0.82),
+      rgba(10, 15, 24, 0.94)
+    );
+}
+
+.access-governance-panel-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 19px 20px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.07);
+}
+
+.access-governance-panel-title {
+  color: #e2e8f0;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.access-governance-panel-description {
+  margin-top: 5px;
+  color: #475569;
+  font-size: 9px;
+}
+
+/* Toolbar */
+
+.access-governance-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 20px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.06);
+}
+
+.access-governance-search {
+  width: 330px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 0 11px;
+  border: 1px solid rgba(148, 163, 184, 0.09);
+  border-radius: 8px;
+  color: #64748b;
+  background: rgba(15, 23, 42, 0.7);
+}
+
+.access-governance-search:focus-within {
+  border-color: rgba(34, 211, 238, 0.25);
+  color: #67e8f9;
+}
+
+.access-governance-search input {
+  min-width: 0;
+  flex: 1;
+  border: 0;
+  outline: 0;
+  color: #cbd5e1;
+  background: transparent;
+  font: inherit;
+  font-size: 10px;
+}
+
+.access-governance-search input::placeholder {
+  color: #475569;
+}
+
+/* Table */
+
+.access-governance-table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.access-governance-table {
+  width: 100%;
+  min-width: 1050px;
+  border-collapse: collapse;
+}
+
+.access-governance-table th {
+  height: 45px;
+  padding: 0 14px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.08);
+  color: #475569;
+  background: rgba(15, 23, 42, 0.5);
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.9px;
+  text-align: left;
+  text-transform: uppercase;
+}
+
+.access-governance-table td {
+  min-height: 66px;
+  padding: 12px 14px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.05);
+  color: #64748b;
+  font-size: 9px;
+  vertical-align: middle;
+}
+
+.access-governance-table tbody tr:hover {
+  background: rgba(148, 163, 184, 0.025);
+}
+
+.access-governance-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+/* User cell */
+
+.access-governance-user {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 150px;
+}
+
+.access-governance-user-icon {
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(34, 211, 238, 0.1);
+  border-radius: 8px;
+  color: #67e8f9;
+  background: rgba(34, 211, 238, 0.06);
+}
+
+.access-governance-user strong {
+  display: block;
+  color: #cbd5e1;
+  font-size: 9px;
+  font-weight: 600;
+}
+
+.access-governance-user span {
+  display: block;
+  margin-top: 3px;
+  color: #475569;
+  font-family: 'Courier New', monospace;
+  font-size: 7px;
+}
+
+/* Badges */
+
+.access-governance-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 23px;
+  padding: 0 8px;
+  border: 1px solid rgba(148, 163, 184, 0.1);
+  border-radius: 6px;
+  color: #94a3b8;
+  background: rgba(148, 163, 184, 0.04);
+  font-size: 7px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+.access-governance-badge-success {
+  color: #4ade80;
+  border-color: rgba(34, 197, 94, 0.12);
+  background: rgba(34, 197, 94, 0.04);
+}
+
+.access-governance-badge-warning {
+  color: #fbbf24;
+  border-color: rgba(245, 158, 11, 0.12);
+  background: rgba(245, 158, 11, 0.04);
+}
+
+.access-governance-badge-danger {
+  color: #f87171;
+  border-color: rgba(239, 68, 68, 0.12);
+  background: rgba(239, 68, 68, 0.04);
+}
+
+.access-governance-badge-info {
+  color: #67e8f9;
+  border-color: rgba(34, 211, 238, 0.12);
+  background: rgba(34, 211, 238, 0.04);
+}
+
+/* Empty state */
+
+.access-governance-empty {
+  min-height: 260px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 30px;
+  text-align: center;
+  color: #475569;
+}
+
+.access-governance-empty svg {
+  margin-bottom: 12px;
+  color: #64748b;
+}
+
+.access-governance-empty h3 {
+  margin: 0;
+  color: #94a3b8;
+  font-size: 12px;
+}
+
+.access-governance-empty p {
+  max-width: 430px;
+  margin-top: 6px;
+  color: #475569;
+  font-size: 9px;
+}
+
+/* Error */
+
+.access-governance-error {
+  margin: 14px 20px;
+  padding: 11px 13px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  border: 1px solid rgba(239, 68, 68, 0.12);
+  border-radius: 8px;
+  color: #f87171;
+  background: rgba(239, 68, 68, 0.04);
+  font-size: 9px;
+}
+
+/* Loading */
+
+.access-governance-loading {
+  min-height: 220px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: #475569;
+  font-size: 9px;
+}
+
+.access-governance-loading svg {
+  margin-bottom: 10px;
+  color: #67e8f9;
+}
+
+.access-governance-spin {
+  animation: access-governance-spin 1s linear infinite;
+}
+
+@keyframes access-governance-spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Responsive */
+
+@media (max-width: 900px) {
+  .access-governance-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .access-governance-search {
+    width: 100%;
+  }
+}
+
+@media (max-width: 700px) {
+  .access-governance-panel-header {
+    flex-direction: column;
+  }
+
+  .access-governance-stats {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* =========================================
+   ACCESS GOVERNANCE MODAL
+   ========================================= */
+
+.access-governance-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(2, 6, 23, 0.78);
+  backdrop-filter: blur(5px);
+}
+
+.access-governance-modal {
+  width: min(760px, 100%);
+  max-height: 90vh;
+  overflow-y: auto;
+  border: 1px solid rgba(34, 211, 238, 0.14);
+  border-radius: 12px;
+  background: #0b111c;
+  box-shadow:
+    0 24px 80px rgba(0, 0, 0, 0.55),
+    0 0 40px rgba(34, 211, 238, 0.04);
+}
+
+.access-governance-modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 22px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.08);
+}
+
+.access-governance-modal-header h2 {
+  margin: 5px 0 0;
+  color: #e2e8f0;
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.access-governance-modal-header p {
+  margin: 5px 0 0;
+  color: #475569;
+  font-size: 9px;
+}
+
+.access-governance-modal-close {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border: 1px solid rgba(148, 163, 184, 0.1);
+  border-radius: 7px;
+  color: #64748b;
+  background: rgba(15, 23, 42, 0.7);
+  cursor: pointer;
+}
+
+.access-governance-modal-close:hover {
+  color: #e2e8f0;
+  border-color: rgba(34, 211, 238, 0.2);
+}
+
+.access-governance-form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 22px;
+}
+
+.access-governance-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.access-governance-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.access-governance-form label > span {
+  color: #64748b;
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.7px;
+  text-transform: uppercase;
+}
+
+.access-governance-form input,
+.access-governance-form select,
+.access-governance-form textarea {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid rgba(148, 163, 184, 0.1);
+  border-radius: 7px;
+  outline: none;
+  color: #cbd5e1;
+  background: #0f172a;
+  font: inherit;
+  font-size: 10px;
+}
+
+.access-governance-form input,
+.access-governance-form select {
+  height: 38px;
+  padding: 0 10px;
+}
+
+.access-governance-form textarea {
+  min-height: 78px;
+  padding: 10px;
+  resize: vertical;
+}
+
+.access-governance-form input::placeholder,
+.access-governance-form textarea::placeholder {
+  color: #334155;
+}
+
+.access-governance-form input:focus,
+.access-governance-form select:focus,
+.access-governance-form textarea:focus {
+  border-color: rgba(34, 211, 238, 0.3);
+  box-shadow: 0 0 0 2px rgba(34, 211, 238, 0.04);
+}
+
+.access-governance-toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+  padding: 12px 14px;
+  border: 1px solid rgba(148, 163, 184, 0.07);
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.45);
+}
+
+.access-governance-checkbox {
+  flex-direction: row !important;
+  align-items: center;
+  gap: 8px !important;
+  cursor: pointer;
+}
+
+.access-governance-checkbox input {
+  width: 15px;
+  height: 15px;
+  accent-color: #22d3ee;
+}
+
+.access-governance-checkbox span {
+  color: #94a3b8 !important;
+  font-size: 9px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0 !important;
+  text-transform: none !important;
+}
+
+.access-governance-form-error {
+  padding: 10px 12px;
+  border: 1px solid rgba(239, 68, 68, 0.12);
+  border-radius: 7px;
+  color: #f87171;
+  background: rgba(239, 68, 68, 0.04);
+  font-size: 9px;
+}
+
+.access-governance-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 9px;
+  padding-top: 4px;
+  border-top: 1px solid rgba(148, 163, 184, 0.07);
+}
+
+@media (max-width: 650px) {
+  .access-governance-modal-overlay {
+    padding: 12px;
+  }
+
+  .access-governance-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .access-governance-toggle-row {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 12px;
+  }
+}
+
+.network-refresh-button {
+  width: 34px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(34, 211, 238, 0.14);
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.7);
+  color: #22d3ee;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.network-refresh-button:hover {
+  border-color: rgba(34, 211, 238, 0.35);
+  background: rgba(34, 211, 238, 0.06);
+}
+
+.network-refresh-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.network-refresh-spin {
+  animation: network-refresh-spin 0.9s linear infinite;
+}
+
+@keyframes network-refresh-spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.process-refresh-button {
+  width: 34px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(34, 211, 238, 0.14);
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.7);
+  color: #22d3ee;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.process-refresh-button:hover {
+  border-color: rgba(34, 211, 238, 0.35);
+  background: rgba(34, 211, 238, 0.06);
+}
+
+.process-refresh-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.process-refresh-spin {
+  animation: process-refresh-spin 0.9s linear infinite;
+}
+
+@keyframes process-refresh-spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}

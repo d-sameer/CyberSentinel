@@ -12,27 +12,21 @@ import {
   Terminal,
   User,
 } from 'lucide-react'
-import { useEffect, useState } from 'react'
+
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 
-type IncidentSeverity = 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW'
-type IncidentStatus = 'OPEN' | 'INVESTIGATING' | 'CONTAINED' | 'RESOLVED'
+type IncidentSeverity =
+  | 'CRITICAL'
+  | 'HIGH'
+  | 'MEDIUM'
+  | 'LOW'
 
-type TimelineEvent = {
-  time: string
-  title: string
-  description: string
-  actor: string
-  type: 'detection' | 'investigation' | 'containment' | 'resolution'
-}
-
-type EvidenceItem = {
-  id: string
-  type: string
-  name: string
-  source: string
-  status: 'COLLECTED' | 'VERIFIED' | 'PENDING'
-}
+type IncidentStatus =
+  | 'OPEN'
+  | 'INVESTIGATING'
+  | 'CONTAINED'
+  | 'RESOLVED'
 
 type ApiIncident = {
   id: number
@@ -59,42 +53,58 @@ type IncidentAction = {
   created_at: string
 }
 
+type InvestigationEvent = {
+  event_id: string
+  title: string
+  description: string
+  severity: string
+  status: string
+  category: string
+  asset: string
+  source: string
+  confidence: number
+  alert_id: string | null
+  incident_id: string | null
+  timestamp: string
+}
+
+type InvestigationEventAction = {
+  action_id: string
+  event_id: string
+  action: string
+  status: string
+  analyst: string
+  created_at: string
+}
+
 type InvestigationTimelineItem = {
   time: string
   title: string
   description: string
   actor: string
-  source: 'EVENT' | 'EVENT_ACTION' | 'INCIDENT' | 'INCIDENT_ACTION'
+  source:
+    | 'EVENT'
+    | 'EVENT_ACTION'
+    | 'INCIDENT'
+    | 'INCIDENT_ACTION'
   reference_id: string
 }
 
 type InvestigationResponse = {
   incident: ApiIncident
-  events: Array<{
-    event_id: string
-    title: string
-    description: string
-    severity: string
-    status: string
-    category: string
-    asset: string
-    source: string
-    confidence: number
-    alert_id: string | null
-    incident_id: string | null
-    timestamp: string
-  }>
+  events: InvestigationEvent[]
   alerts: string[]
-  event_actions: Array<{
-    action_id: string
-    event_id: string
-    action: string
-    status: string
-    analyst: string
-    created_at: string
-  }>
+  event_actions: InvestigationEventAction[]
   incident_actions: IncidentAction[]
   timeline: InvestigationTimelineItem[]
+}
+
+type EvidenceItem = {
+  id: string
+  type: string
+  name: string
+  source: string
+  status: 'COLLECTED' | 'VERIFIED' | 'PENDING'
 }
 
 type Incident = {
@@ -106,317 +116,19 @@ type Incident = {
   endpoint: string
   analyst: string
   source: string
-  technique: string
-  techniqueName: string
   evidenceCount: number
   created: string
   updated: string
-  detectionRule: string
-  category: string
-  confidence: number
-  firstObserved: string
-  lastObserved: string
-  timeline: TimelineEvent[]
-  evidence: EvidenceItem[]
   relatedEventIds: string[]
   relatedAlertIds: string[]
 }
 
-const API_BASE_URL = 'http://127.0.0.1:8000'
+const API_BASE_URL = 'http://127.0.0.1:8001'
 
-const incidentContext: Record<
-  string,
-  {
-    technique: string
-    techniqueName: string
-    detectionRule: string
-    category: string
-    confidence: number
-    firstObserved: string
-    lastObserved: string
-    timeline: TimelineEvent[]
-    evidence: EvidenceItem[]
-  }
-> = {
-  'INC-003': {
-    technique: 'T1071.001',
-    techniqueName: 'Web Protocols',
-    detectionRule: 'Suspicious Outbound Connection',
-    category: 'Command and Control',
-    confidence: 91,
-    firstObserved: '2026-09-26 22:15:39',
-    lastObserved: '2026-09-27 09:57:11',
-    timeline: [
-      {
-        time: '22:15:39',
-        title: 'Network Detection',
-        description:
-          'Outbound traffic matched a suspicious communication pattern.',
-        actor: 'Network Sensor',
-        type: 'detection',
-      },
-      {
-        time: '22:17:04',
-        title: 'Incident Created',
-        description:
-          'A high-severity investigation case was opened.',
-        actor: 'CyberSentinel',
-        type: 'detection',
-      },
-      {
-        time: '23:06:19',
-        title: 'Connection Correlated',
-        description:
-          'Network activity was correlated with endpoint process telemetry.',
-        actor: 'SOC Analyst',
-        type: 'investigation',
-      },
-      {
-        time: '09:58:42',
-        title: 'Investigation Active',
-        description:
-          'Analyst is reviewing destination reputation and process ancestry.',
-        actor: 'SOC Analyst',
-        type: 'investigation',
-      },
-    ],
-    evidence: [
-      {
-        id: 'EVD-201',
-        type: 'NETWORK',
-        name: '185.199.108.153:443',
-        source: 'Network Sensor',
-        status: 'VERIFIED',
-      },
-      {
-        id: 'EVD-202',
-        type: 'PROCESS',
-        name: 'svchost.exe',
-        source: 'WIN-01',
-        status: 'COLLECTED',
-      },
-      {
-        id: 'EVD-203',
-        type: 'DNS',
-        name: 'cdn-update.example',
-        source: 'DNS Telemetry',
-        status: 'PENDING',
-      },
-    ],
-  },
-
-  'INC-001': {
-    technique: 'T1059.001',
-    techniqueName: 'PowerShell',
-    detectionRule: 'PowerShell Execution Policy Bypass',
-    category: 'Execution',
-    confidence: 94,
-    firstObserved: '2026-09-27 09:12:44',
-    lastObserved: '2026-09-27 10:31:52',
-    timeline: [
-      {
-        time: '09:12:44',
-        title: 'Detection Triggered',
-        description:
-          'A PowerShell process launched with execution policy bypass parameters.',
-        actor: 'Detection Engine',
-        type: 'detection',
-      },
-      {
-        time: '09:14:22',
-        title: 'Incident Created',
-        description:
-          'Detection DET-001 generated a new high-severity investigation case.',
-        actor: 'CyberSentinel',
-        type: 'detection',
-      },
-      {
-        time: '09:21:07',
-        title: 'Analyst Assigned',
-        description:
-          'Case assigned to the SOC Analyst for investigation.',
-        actor: 'SOC Manager',
-        type: 'investigation',
-      },
-      {
-        time: '09:46:31',
-        title: 'Process Investigation',
-        description:
-          'PowerShell parent-child process relationships and command-line activity were reviewed.',
-        actor: 'SOC Analyst',
-        type: 'investigation',
-      },
-      {
-        time: '10:18:14',
-        title: 'Evidence Collected',
-        description:
-          'Process metadata, command-line arguments, network indicators, and file hashes were collected.',
-        actor: 'SOC Analyst',
-        type: 'investigation',
-      },
-      {
-        time: '10:31:52',
-        title: 'Containment Pending',
-        description:
-          'Endpoint isolation is pending confirmation from the response workflow.',
-        actor: 'SOC Analyst',
-        type: 'containment',
-      },
-    ],
-    evidence: [
-      {
-        id: 'EVD-001',
-        type: 'PROCESS',
-        name: 'powershell.exe',
-        source: 'WIN-01',
-        status: 'VERIFIED',
-      },
-      {
-        id: 'EVD-002',
-        type: 'COMMAND',
-        name: '-ExecutionPolicy Bypass',
-        source: 'Process Telemetry',
-        status: 'VERIFIED',
-      },
-      {
-        id: 'EVD-003',
-        type: 'NETWORK',
-        name: '185.199.108.153:443',
-        source: 'Network Telemetry',
-        status: 'COLLECTED',
-      },
-      {
-        id: 'EVD-004',
-        type: 'FILE',
-        name: 'update-helper.ps1',
-        source: 'File Integrity',
-        status: 'VERIFIED',
-      },
-    ],
-  },
-
-  'INC-002': {
-    technique: 'T1110',
-    techniqueName: 'Brute Force',
-    detectionRule: 'Multiple Authentication Failures',
-    category: 'Credential Access',
-    confidence: 82,
-    firstObserved: '2026-09-27 08:39:02',
-    lastObserved: '2026-09-27 08:44:51',
-    timeline: [
-      {
-        time: '08:39:02',
-        title: 'Authentication Failures Detected',
-        description:
-          'Multiple unsuccessful login attempts were recorded.',
-        actor: 'Authentication Monitor',
-        type: 'detection',
-      },
-      {
-        time: '08:41:18',
-        title: 'Incident Created',
-        description:
-          'The authentication detection generated an incident.',
-        actor: 'CyberSentinel',
-        type: 'detection',
-      },
-      {
-        time: '08:45:12',
-        title: 'Awaiting Assignment',
-        description:
-          'Incident remains open and requires analyst investigation.',
-        actor: 'CyberSentinel',
-        type: 'investigation',
-      },
-    ],
-    evidence: [
-      {
-        id: 'EVD-101',
-        type: 'AUTH',
-        name: '18 failed login attempts',
-        source: 'WIN-02',
-        status: 'COLLECTED',
-      },
-      {
-        id: 'EVD-102',
-        type: 'IP',
-        name: '10.0.0.45',
-        source: 'Authentication Logs',
-        status: 'VERIFIED',
-      },
-    ],
-  },
-
-  'INC-004': {
-    technique: 'T1070.004',
-    techniqueName: 'File Deletion',
-    detectionRule: 'Security File Deletion',
-    category: 'Defense Evasion',
-    confidence: 98,
-    firstObserved: '2026-09-26 17:20:11',
-    lastObserved: '2026-09-26 17:58:04',
-    timeline: [
-      {
-        time: '17:20:11',
-        title: 'Deletion Attempt Detected',
-        description:
-          'A process attempted to remove security telemetry files.',
-        actor: 'File Integrity Monitor',
-        type: 'detection',
-      },
-      {
-        time: '17:21:41',
-        title: 'Critical Incident Created',
-        description:
-          'CyberSentinel classified the activity as critical severity.',
-        actor: 'CyberSentinel',
-        type: 'detection',
-      },
-      {
-        time: '17:36:52',
-        title: 'Endpoint Contained',
-        description:
-          'Network access from the affected endpoint was restricted.',
-        actor: 'SOC Analyst',
-        type: 'containment',
-      },
-      {
-        time: '18:03:14',
-        title: 'Evidence Preserved',
-        description:
-          'Relevant process, file, and event data was preserved for investigation.',
-        actor: 'SOC Analyst',
-        type: 'containment',
-      },
-    ],
-    evidence: [
-      {
-        id: 'EVD-301',
-        type: 'FILE',
-        name: 'Security.evtx',
-        source: 'WIN-02',
-        status: 'VERIFIED',
-      },
-      {
-        id: 'EVD-302',
-        type: 'PROCESS',
-        name: 'cmd.exe',
-        source: 'Process Telemetry',
-        status: 'VERIFIED',
-      },
-      {
-        id: 'EVD-303',
-        type: 'COMMAND',
-        name: 'wevtutil cl Security',
-        source: 'Command Telemetry',
-        status: 'VERIFIED',
-      },
-    ],
-  },
-}
-
-function normalizeSeverity(value: string): IncidentSeverity {
-  const severity = value.toUpperCase()
+function normalizeSeverity(
+  value: string,
+): IncidentSeverity {
+  const severity = String(value ?? 'MEDIUM').toUpperCase()
 
   if (
     severity === 'CRITICAL' ||
@@ -430,8 +142,10 @@ function normalizeSeverity(value: string): IncidentSeverity {
   return 'MEDIUM'
 }
 
-function normalizeStatus(value: string): IncidentStatus {
-  const status = value.toUpperCase()
+function normalizeStatus(
+  value: string,
+): IncidentStatus {
+  const status = String(value ?? 'OPEN').toUpperCase()
 
   if (
     status === 'OPEN' ||
@@ -446,6 +160,7 @@ function normalizeStatus(value: string): IncidentStatus {
 }
 
 function formatDate(value: string) {
+  if (!value) return 'N/A'
   const date = new Date(value)
 
   if (Number.isNaN(date.getTime())) {
@@ -463,118 +178,278 @@ function formatDate(value: string) {
   })
 }
 
-function buildIncident(item: ApiIncident): Incident {
-  const context = incidentContext[item.incident_id]
+function asRecord(value: unknown): Record<string, any> {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, any>)
+    : {}
+}
 
-  const relatedEvidence = [
-    ...(item.related_event_ids ?? []),
-    ...(item.related_alert_ids ?? []),
-  ]
+function unwrapObject(value: unknown): Record<string, any> {
+  const record = asRecord(value)
+  const nested = record.data ?? record.item ?? record.result ?? record.incident ?? value
+  return asRecord(nested)
+}
 
-  const fallbackContext = {
-    technique: 'N/A',
-    techniqueName: 'No technique mapped',
-    detectionRule: 'Incident API',
-    category: 'Security Investigation',
-    confidence: 0,
-    firstObserved: item.created_at,
-    lastObserved: item.updated_at,
-    timeline: [],
-    evidence: [],
-  }
+function asStringArray(value: unknown): string[] {
+  return Array.isArray(value) ? value.map((item) => String(item)).filter(Boolean) : []
+}
 
-  const selectedContext = context ?? fallbackContext
-
+function normalizeIncidentPayload(value: unknown): ApiIncident {
+  const item = unwrapObject(value)
   return {
-    id: item.incident_id,
-    title: item.title,
-    description: item.description,
-    severity: normalizeSeverity(item.severity),
-    status: normalizeStatus(item.status),
-    endpoint: item.primary_asset,
-    analyst: item.analyst || 'Unassigned',
-    source:
-      item.related_alert_ids?.length > 0
-        ? item.related_alert_ids.join(', ')
-        : item.related_event_ids?.length > 0
-          ? item.related_event_ids.join(', ')
-          : 'Incident API',
-    technique: selectedContext.technique,
-    techniqueName: selectedContext.techniqueName,
-    evidenceCount:
-      selectedContext.evidence.length > 0
-        ? selectedContext.evidence.length
-        : relatedEvidence.length,
-    created: formatDate(item.created_at),
-    updated: formatDate(item.updated_at),
-    detectionRule: selectedContext.detectionRule,
-    category: selectedContext.category,
-    confidence: selectedContext.confidence,
-    firstObserved: selectedContext.firstObserved,
-    lastObserved: selectedContext.lastObserved,
-    timeline: selectedContext.timeline,
-    evidence: selectedContext.evidence,
-    relatedEventIds: item.related_event_ids ?? [],
-    relatedAlertIds: item.related_alert_ids ?? [],
+    id: Number(item.id ?? 0),
+    incident_id: String(item.incident_id ?? item.incidentId ?? item.case_id ?? item.id ?? ''),
+    title: String(item.title ?? item.name ?? 'Untitled incident'),
+    description: String(item.description ?? item.summary ?? 'No description provided.'),
+    severity: String(item.severity ?? 'MEDIUM'),
+    status: String(item.status ?? 'OPEN'),
+    analyst: String(item.analyst ?? item.assigned_analyst ?? item.assignedAnalyst ?? 'Unassigned'),
+    primary_asset: String(item.primary_asset ?? item.primaryAsset ?? item.endpoint ?? item.asset ?? 'Unknown asset'),
+    related_event_ids: asStringArray(item.related_event_ids ?? item.relatedEventIds),
+    related_alert_ids: asStringArray(item.related_alert_ids ?? item.relatedAlertIds),
+    created_at: String(item.created_at ?? item.createdAt ?? item.created ?? ''),
+    updated_at: String(item.updated_at ?? item.updatedAt ?? item.updated ?? item.created_at ?? item.createdAt ?? ''),
   }
 }
 
-const severityClass = (severity: IncidentSeverity) => {
+function normalizeActionList(value: unknown): IncidentAction[] {
+  const record = asRecord(value)
+  const list = Array.isArray(value) ? value : record.data ?? record.items ?? record.results ?? record.actions ?? []
+  if (!Array.isArray(list)) return []
+  return list.map((raw: unknown, index: number) => {
+    const item = asRecord(raw)
+    return {
+      id: Number(item.id ?? index),
+      action_id: String(item.action_id ?? item.actionId ?? item.id ?? `ACTION-${index + 1}`),
+      incident_id: String(item.incident_id ?? item.incidentId ?? ''),
+      action: String(item.action ?? item.action_type ?? item.actionType ?? 'UNKNOWN_ACTION'),
+      status: String(item.status ?? 'RECORDED'),
+      analyst: String(item.analyst ?? 'SOC Analyst'),
+      created_at: String(item.created_at ?? item.createdAt ?? ''),
+    }
+  })
+}
+
+function normalizeInvestigationPayload(value: unknown): InvestigationResponse {
+  const root = unwrapObject(value)
+  const incident = normalizeIncidentPayload(root.incident ?? root)
+  const eventsRaw = root.events ?? root.related_events ?? root.relatedEvents ?? []
+  const alertsRaw = root.alerts ?? root.related_alerts ?? root.relatedAlerts ?? []
+  const eventActionsRaw = root.event_actions ?? root.eventActions ?? []
+  const timelineRaw = root.timeline ?? root.activity_timeline ?? root.activityTimeline ?? []
+  const events = (Array.isArray(eventsRaw) ? eventsRaw : []).map((raw: unknown, index: number) => {
+    const item = asRecord(raw)
+    return {
+      event_id: String(item.event_id ?? item.eventId ?? item.id ?? `EVENT-${index + 1}`),
+      title: String(item.title ?? item.name ?? 'Security event'),
+      description: String(item.description ?? item.summary ?? ''),
+      severity: String(item.severity ?? 'MEDIUM'),
+      status: String(item.status ?? 'OPEN'),
+      category: String(item.category ?? 'Security Investigation'),
+      asset: String(item.asset ?? item.endpoint ?? item.host ?? ''),
+      source: String(item.source ?? 'Security Event'),
+      confidence: Number(item.confidence ?? 0),
+      alert_id: item.alert_id == null && item.alertId == null ? null : String(item.alert_id ?? item.alertId),
+      incident_id: item.incident_id == null && item.incidentId == null ? null : String(item.incident_id ?? item.incidentId),
+      timestamp: String(item.timestamp ?? item.created_at ?? item.createdAt ?? ''),
+    }
+  })
+  const event_actions = (Array.isArray(eventActionsRaw) ? eventActionsRaw : []).map((raw: unknown, index: number) => {
+    const item = asRecord(raw)
+    return {
+      action_id: String(item.action_id ?? item.actionId ?? item.id ?? `EVENT-ACTION-${index + 1}`),
+      event_id: String(item.event_id ?? item.eventId ?? ''),
+      action: String(item.action ?? item.action_type ?? 'UNKNOWN_ACTION'),
+      status: String(item.status ?? 'RECORDED'),
+      analyst: String(item.analyst ?? 'SOC Analyst'),
+      created_at: String(item.created_at ?? item.createdAt ?? ''),
+    }
+  })
+  const timeline = (Array.isArray(timelineRaw) ? timelineRaw : []).map((raw: unknown, index: number) => {
+    const item = asRecord(raw)
+    const source = String(item.source ?? item.type ?? 'INCIDENT').toUpperCase()
+    const allowedSource = ['EVENT', 'EVENT_ACTION', 'INCIDENT', 'INCIDENT_ACTION'].includes(source)
+      ? source as InvestigationTimelineItem['source'] : 'INCIDENT'
+    return {
+      time: String(item.time ?? item.timestamp ?? item.created_at ?? item.createdAt ?? ''),
+      title: String(item.title ?? item.action ?? 'Investigation activity'),
+      description: String(item.description ?? item.details ?? ''),
+      actor: String(item.actor ?? item.analyst ?? 'System'),
+      source: allowedSource,
+      reference_id: String(item.reference_id ?? item.referenceId ?? item.action_id ?? item.event_id ?? `TIMELINE-${index + 1}`),
+    }
+  })
+  const rawAlerts = Array.isArray(alertsRaw) ? alertsRaw : []
+  const alerts = rawAlerts.map((item: unknown) => typeof item === 'string' ? item : String(asRecord(item).alert_id ?? asRecord(item).alertId ?? asRecord(item).id ?? '')) .filter(Boolean)
+  return {
+    incident,
+    events,
+    alerts,
+    event_actions,
+    incident_actions: normalizeActionList(root.incident_actions ?? root.incidentActions ?? []),
+    timeline,
+  }
+}
+
+function buildIncident(
+  item: ApiIncident,
+): Incident {
+  const evidenceCount =
+    (item.related_event_ids?.length ?? 0) +
+    (item.related_alert_ids?.length ?? 0)
+
+  const source =
+    item.related_alert_ids?.length > 0
+      ? item.related_alert_ids.join(', ')
+      : item.related_event_ids?.length > 0
+        ? item.related_event_ids.join(', ')
+        : 'Incident API'
+
+  return {
+    id: item.incident_id || String(item.id),
+    title: item.title || 'Untitled incident',
+    description: item.description || 'No description provided.',
+    severity: normalizeSeverity(item.severity),
+    status: normalizeStatus(item.status),
+    endpoint: item.primary_asset || 'Unknown asset',
+    analyst: item.analyst || 'Unassigned',
+    source,
+    evidenceCount,
+    created: formatDate(item.created_at),
+    updated: formatDate(item.updated_at),
+    relatedEventIds:
+      item.related_event_ids ?? [],
+    relatedAlertIds:
+      item.related_alert_ids ?? [],
+  }
+}
+
+function severityClass(
+  severity: IncidentSeverity,
+) {
   return `incident-detail-severity incident-detail-severity-${severity.toLowerCase()}`
 }
 
-const statusClass = (status: IncidentStatus) => {
+function statusClass(
+  status: IncidentStatus,
+) {
   return `incident-detail-status incident-detail-status-${status.toLowerCase()}`
 }
 
-const timelineIcon = (type: TimelineEvent['type']) => {
-  if (type === 'detection') {
+function timelineIcon(
+  source: InvestigationTimelineItem['source'],
+  title: string,
+) {
+  if (source === 'INCIDENT_ACTION') {
+    if (
+      title.toUpperCase().includes('MARK RESOLVED')
+    ) {
+      return <CheckCircle2 size={15} />
+    }
+
+    if (
+      title.toUpperCase().includes('CONTAIN')
+    ) {
+      return <ShieldCheck size={15} />
+    }
+  }
+
+  if (source === 'EVENT') {
     return <ShieldAlert size={15} />
   }
 
-  if (type === 'containment') {
+  if (source === 'EVENT_ACTION') {
     return <ShieldCheck size={15} />
-  }
-
-  if (type === 'resolution') {
-    return <CheckCircle2 size={15} />
   }
 
   return <FileSearch size={15} />
 }
 
-function investigationTimelineType(
-  item: InvestigationTimelineItem,
-): TimelineEvent['type'] {
-  if (item.source === 'EVENT') return 'detection'
+function evidenceFromInvestigation(
+  investigation: InvestigationResponse,
+): EvidenceItem[] {
+  const evidence: EvidenceItem[] = []
 
-  if (item.source === 'INCIDENT_ACTION') {
-    const action = item.title.toUpperCase()
-    if (action.includes('MARK RESOLVED')) return 'resolution'
-    if (action.includes('CONTAIN')) return 'containment'
-  }
+  investigation.events.forEach(
+    (event) => {
+      evidence.push({
+        id: event.event_id,
+        type: 'SECURITY EVENT',
+        name: event.title,
+        source:
+          event.asset ||
+          event.source ||
+          'Security Event',
+        status: 'VERIFIED',
+      })
+    },
+  )
 
-  if (item.source === 'EVENT_ACTION' && item.title.toUpperCase().includes('ISOLATE')) {
-    return 'containment'
-  }
+  investigation.event_actions.forEach(
+    (action) => {
+      evidence.push({
+        id: action.action_id,
+        type: 'EVENT ACTION',
+        name: action.action.replaceAll(
+          '_',
+          ' ',
+        ),
+        source: action.event_id,
+        status: 'COLLECTED',
+      })
+    },
+  )
 
-  return 'investigation'
+  investigation.alerts.forEach(
+    (alertId) => {
+      evidence.push({
+        id: alertId,
+        type: 'ALERT',
+        name: alertId,
+        source: 'Alert Correlation',
+        status: 'VERIFIED',
+      })
+    },
+  )
+
+  return evidence
 }
 
 export default function IncidentDetails() {
-  const { incidentId } = useParams<{ incidentId: string }>()
+  const { incidentId } =
+    useParams<{ incidentId: string }>()
 
-  const [incident, setIncident] = useState<Incident | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [apiError, setApiError] = useState('')
-  const [actionLoading, setActionLoading] = useState(false)
-  const [actionMessage, setActionMessage] = useState('')
-  const [actionError, setActionError] = useState('')
-  const [incidentActions, setIncidentActions] = useState<IncidentAction[]>([])
+  const [incident, setIncident] =
+    useState<Incident | null>(null)
+
   const [investigation, setInvestigation] =
-    useState<InvestigationResponse | null>(null)
-  const [investigationLoading, setInvestigationLoading] = useState(false)
-  const [investigationError, setInvestigationError] = useState('')
+    useState<InvestigationResponse | null>(
+      null,
+    )
+
+  const [incidentActions, setIncidentActions] =
+    useState<IncidentAction[]>([])
+
+  const [loading, setLoading] =
+    useState(true)
+
+  const [investigationLoading, setInvestigationLoading] =
+    useState(false)
+
+  const [apiError, setApiError] =
+    useState('')
+
+  const [investigationError, setInvestigationError] =
+    useState('')
+
+  const [actionLoading, setActionLoading] =
+    useState(false)
+
+  const [actionMessage, setActionMessage] =
+    useState('')
+
+  const [actionError, setActionError] =
+    useState('')
 
   async function loadIncidentActions() {
     if (!incidentId) {
@@ -583,17 +458,22 @@ export default function IncidentDetails() {
 
     try {
       const response = await fetch(
-        `${API_BASE_URL}/api/incidents/${incidentId}/actions`,
+        `${API_BASE_URL}/api/incidents/${encodeURIComponent(incidentId)}/actions`,
       )
 
       if (!response.ok) {
-        throw new Error(`Incident action API returned ${response.status}`)
+        throw new Error(
+          `Incident action API returned ${response.status}`,
+        )
       }
 
-      const data: IncidentAction[] = await response.json()
-      setIncidentActions(data)
+      const data: unknown = await response.json()
+      setIncidentActions(normalizeActionList(data))
     } catch (error) {
-      console.error('Failed to load incident actions:', error)
+      console.error(
+        'Failed to load incident actions:',
+        error,
+      )
     }
   }
 
@@ -607,7 +487,7 @@ export default function IncidentDetails() {
       setInvestigationError('')
 
       const response = await fetch(
-        `${API_BASE_URL}/api/incidents/${incidentId}/investigation`,
+        `${API_BASE_URL}/api/incidents/${encodeURIComponent(incidentId)}/investigation`,
       )
 
       if (!response.ok) {
@@ -616,15 +496,23 @@ export default function IncidentDetails() {
         )
       }
 
-      const data: InvestigationResponse = await response.json()
+      const payload: unknown = await response.json()
+      const data = normalizeInvestigationPayload(payload)
+
       setInvestigation(data)
+      setIncidentActions(data.incident_actions)
     } catch (error) {
-      console.error('Failed to load unified investigation:', error)
+      console.error(
+        'Failed to load investigation:',
+        error,
+      )
+
       setInvestigation(null)
+
       setInvestigationError(
         error instanceof Error
           ? error.message
-          : 'Unable to load unified investigation data.',
+          : 'Unable to load investigation data.',
       )
     } finally {
       setInvestigationLoading(false)
@@ -633,7 +521,9 @@ export default function IncidentDetails() {
 
   async function loadIncident() {
     if (!incidentId) {
-      setApiError('No incident ID was provided.')
+      setApiError(
+        'No incident ID was provided.',
+      )
       setLoading(false)
       return
     }
@@ -643,23 +533,32 @@ export default function IncidentDetails() {
       setApiError('')
 
       const response = await fetch(
-        `${API_BASE_URL}/api/incidents/${incidentId}`,
+        `${API_BASE_URL}/api/incidents/${encodeURIComponent(incidentId)}`,
       )
 
       if (!response.ok) {
         if (response.status === 404) {
-          throw new Error('Incident not found.')
+          throw new Error(
+            'Incident not found.',
+          )
         }
 
-        throw new Error(`Incident API returned ${response.status}`)
+        throw new Error(
+          `Incident API returned ${response.status}`,
+        )
       }
 
-      const data: ApiIncident = await response.json()
-
+      const payload: unknown = await response.json()
+      const data = normalizeIncidentPayload(payload)
+      if (!data.incident_id) {
+        throw new Error('The incident response did not include an incident ID.')
+      }
       setIncident(buildIncident(data))
-      await loadIncidentActions()
     } catch (error) {
-      console.error('Failed to load incident:', error)
+      console.error(
+        'Failed to load incident:',
+        error,
+      )
 
       setIncident(null)
 
@@ -675,13 +574,13 @@ export default function IncidentDetails() {
 
   useEffect(() => {
     loadIncident()
+    loadIncidentActions()
     loadInvestigation()
   }, [incidentId])
 
   async function executeIncidentAction(
     action: string,
     successMessage: string,
-    nextStatus?: IncidentStatus,
   ) {
     if (!incidentId || actionLoading) {
       return
@@ -692,65 +591,52 @@ export default function IncidentDetails() {
       setActionMessage('')
       setActionError('')
 
-      const actionResponse = await fetch(
-        `${API_BASE_URL}/api/incidents/${incidentId}/actions`,
+      const response = await fetch(
+        `${API_BASE_URL}/api/incidents/${encodeURIComponent(incidentId)}/actions`,
         {
           method: 'POST',
           headers: {
-            'Content-Type': 'application/json',
+            'Content-Type':
+              'application/json',
           },
           body: JSON.stringify({
             action,
-            analyst: incident?.analyst || 'SOC Analyst',
+            analyst:
+              incident?.analyst ||
+              'SOC Analyst',
           }),
         },
       )
 
-      if (!actionResponse.ok) {
-        const errorData = await actionResponse.json().catch(() => null)
+      if (!response.ok) {
+        const errorData =
+          await response
+            .json()
+            .catch(() => null)
 
         throw new Error(
           errorData?.detail ||
-            `Incident action failed with status ${actionResponse.status}`,
+            `Incident action failed with status ${response.status}`,
         )
       }
 
-      const createdAction: IncidentAction = await actionResponse.json()
+      const createdPayload: unknown = await response.json()
+      const createdAction = normalizeActionList([unwrapObject(createdPayload)])[0]
 
-      setIncidentActions((current) => [createdAction, ...current])
+      if (createdAction) {
+        setIncidentActions((current) => [createdAction, ...current.filter((item) => item.action_id !== createdAction.action_id)])
+      }
+
       setActionMessage(successMessage)
 
-      if (nextStatus) {
-        const statusResponse = await fetch(
-          `${API_BASE_URL}/api/incidents/${incidentId}`,
-          {
-            method: 'PATCH',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              status: nextStatus,
-              analyst: incident?.analyst || 'SOC Analyst',
-            }),
-          },
-        )
-
-        if (!statusResponse.ok) {
-          const errorData = await statusResponse.json().catch(() => null)
-
-          throw new Error(
-            errorData?.detail ||
-              `Incident status update failed with status ${statusResponse.status}`,
-          )
-        }
-
-        const updatedIncident: ApiIncident = await statusResponse.json()
-        setIncident(buildIncident(updatedIncident))
-      }
-
+      await loadIncident()
+      await loadIncidentActions()
       await loadInvestigation()
     } catch (error) {
-      console.error('Failed to execute incident action:', error)
+      console.error(
+        'Failed to execute incident action:',
+        error,
+      )
 
       setActionError(
         error instanceof Error
@@ -762,6 +648,56 @@ export default function IncidentDetails() {
     }
   }
 
+  const investigationEvents =
+    investigation?.events ?? []
+
+  const investigationAlerts =
+    investigation?.alerts ?? []
+
+  const investigationTimeline =
+    investigation?.timeline ?? []
+
+  const evidence = useMemo(() => {
+    if (!investigation) {
+      return []
+    }
+
+    return evidenceFromInvestigation(
+      investigation,
+    )
+  }, [investigation])
+
+  const confidence = useMemo(() => {
+    if (
+      investigationEvents.length === 0
+    ) {
+      return null
+    }
+
+    const values =
+      investigationEvents
+        .map((event) => event.confidence)
+        .filter(
+          (value) => typeof value === 'number' && Number.isFinite(value),
+        )
+
+    if (values.length === 0) {
+      return null
+    }
+
+    return Math.max(...values)
+  }, [investigationEvents])
+
+  const primaryEvent =
+    investigationEvents[0]
+
+  const category =
+    primaryEvent?.category ||
+    'Security Investigation'
+
+  const detectionSource =
+    incident?.source ||
+    'Incident API'
 
   if (loading) {
     return (
@@ -788,7 +724,11 @@ export default function IncidentDetails() {
             Loading incident investigation
           </strong>
 
-          <span style={{ fontSize: '12px' }}>
+          <span
+            style={{
+              fontSize: '12px',
+            }}
+          >
             Connecting to CyberSentinel Incident API...
           </span>
         </div>
@@ -803,8 +743,10 @@ export default function IncidentDetails() {
           style={{
             padding: '30px',
             borderRadius: '12px',
-            border: '1px solid rgba(239, 68, 68, 0.22)',
-            background: 'rgba(239, 68, 68, 0.06)',
+            border:
+              '1px solid rgba(239, 68, 68, 0.22)',
+            background:
+              'rgba(239, 68, 68, 0.06)',
             color: '#fca5a5',
           }}
         >
@@ -817,11 +759,20 @@ export default function IncidentDetails() {
             }}
           >
             <AlertTriangle size={19} />
-            <strong>Unable to load incident</strong>
+
+            <strong>
+              Unable to load incident
+            </strong>
           </div>
 
-          <p style={{ margin: 0, fontSize: '13px' }}>
-            {apiError || 'The requested incident could not be found.'}
+          <p
+            style={{
+              margin: 0,
+              fontSize: '13px',
+            }}
+          >
+            {apiError ||
+              'The requested incident could not be found.'}
           </p>
 
           <Link
@@ -851,13 +802,17 @@ export default function IncidentDetails() {
           <h1>{incident.title}</h1>
 
           <p>
-            Investigate incident activity, correlate evidence, review response
+            Investigate incident activity,
+            correlate evidence, review response
             actions, and track case resolution.
           </p>
         </div>
 
         <div className="incident-detail-header-actions">
-          <Link to="/incidents" className="incident-detail-back">
+          <Link
+            to="/incidents"
+            className="incident-detail-back"
+          >
             <ArrowLeft size={15} />
             INCIDENT CENTER
           </Link>
@@ -877,7 +832,7 @@ export default function IncidentDetails() {
 
         <div>
           <span>DETECTION</span>
-          <strong>{incident.source}</strong>
+          <strong>{detectionSource}</strong>
         </div>
 
         <div>
@@ -890,12 +845,20 @@ export default function IncidentDetails() {
           <strong>{incident.analyst}</strong>
         </div>
 
-        <div className={severityClass(incident.severity)}>
+        <div
+          className={severityClass(
+            incident.severity,
+          )}
+        >
           <AlertTriangle size={14} />
           {incident.severity}
         </div>
 
-        <div className={statusClass(incident.status)}>
+        <div
+          className={statusClass(
+            incident.status,
+          )}
+        >
           <span />
           {incident.status}
         </div>
@@ -905,28 +868,36 @@ export default function IncidentDetails() {
         <div className="incident-detail-metric">
           <span>CONFIDENCE</span>
           <strong>
-            {incident.confidence > 0 ? `${incident.confidence}%` : 'N/A'}
+            {confidence !== null
+              ? `${confidence}%`
+              : 'N/A'}
           </strong>
         </div>
 
         <div className="incident-detail-metric">
           <span>EVIDENCE ITEMS</span>
-          <strong>{incident.evidenceCount}</strong>
+          <strong>
+            {evidence.length}
+          </strong>
         </div>
 
         <div className="incident-detail-metric">
-          <span>MITRE TECHNIQUE</span>
-          <strong>{incident.technique}</strong>
+          <span>RELATED EVENTS</span>
+          <strong>
+            {investigationEvents.length}
+          </strong>
+        </div>
+
+        <div className="incident-detail-metric">
+          <span>RELATED ALERTS</span>
+          <strong>
+            {investigationAlerts.length}
+          </strong>
         </div>
 
         <div className="incident-detail-metric">
           <span>CATEGORY</span>
-          <strong>{incident.category}</strong>
-        </div>
-
-        <div className="incident-detail-metric">
-          <span>FIRST OBSERVED</span>
-          <strong>{incident.firstObserved}</strong>
+          <strong>{category}</strong>
         </div>
 
         <div className="incident-detail-metric">
@@ -941,8 +912,10 @@ export default function IncidentDetails() {
             marginBottom: '18px',
             padding: '12px 15px',
             borderRadius: '9px',
-            border: '1px solid rgba(34, 197, 94, 0.2)',
-            background: 'rgba(34, 197, 94, 0.06)',
+            border:
+              '1px solid rgba(34, 197, 94, 0.2)',
+            background:
+              'rgba(34, 197, 94, 0.06)',
             color: '#86efac',
             fontSize: '13px',
           }}
@@ -954,6 +927,7 @@ export default function IncidentDetails() {
               marginRight: '8px',
             }}
           />
+
           {actionMessage}
         </div>
       )}
@@ -964,8 +938,10 @@ export default function IncidentDetails() {
             marginBottom: '18px',
             padding: '12px 15px',
             borderRadius: '9px',
-            border: '1px solid rgba(239, 68, 68, 0.22)',
-            background: 'rgba(239, 68, 68, 0.06)',
+            border:
+              '1px solid rgba(239, 68, 68, 0.22)',
+            background:
+              'rgba(239, 68, 68, 0.06)',
             color: '#fca5a5',
             fontSize: '13px',
           }}
@@ -977,6 +953,7 @@ export default function IncidentDetails() {
               marginRight: '8px',
             }}
           />
+
           {actionError}
         </div>
       )}
@@ -989,6 +966,7 @@ export default function IncidentDetails() {
                 <span className="incident-detail-panel-kicker">
                   CASE OVERVIEW
                 </span>
+
                 <h2>{incident.title}</h2>
               </div>
 
@@ -1001,25 +979,43 @@ export default function IncidentDetails() {
 
             <div className="incident-detail-context-grid">
               <div>
-                <span>DETECTION RULE</span>
-                <strong>{incident.detectionRule}</strong>
-              </div>
-
-              <div>
-                <span>MITRE ATT&CK</span>
+                <span>CASE SOURCE</span>
                 <strong>
-                  {incident.technique} · {incident.techniqueName}
+                  {detectionSource}
                 </strong>
               </div>
 
               <div>
+                <span>PRIMARY ASSET</span>
+                <strong>
+                  {incident.endpoint}
+                </strong>
+              </div>
+
+              <div>
+                <span>CATEGORY</span>
+                <strong>{category}</strong>
+              </div>
+
+              <div>
                 <span>CREATED</span>
-                <strong>{incident.created}</strong>
+                <strong>
+                  {incident.created}
+                </strong>
               </div>
 
               <div>
                 <span>LAST UPDATED</span>
-                <strong>{incident.updated}</strong>
+                <strong>
+                  {incident.updated}
+                </strong>
+              </div>
+
+              <div>
+                <span>ANALYST</span>
+                <strong>
+                  {incident.analyst}
+                </strong>
               </div>
             </div>
           </section>
@@ -1030,7 +1026,10 @@ export default function IncidentDetails() {
                 <span className="incident-detail-panel-kicker">
                   SECURITY CORRELATION
                 </span>
-                <h2>Related Investigations</h2>
+
+                <h2>
+                  Related Investigations
+                </h2>
               </div>
 
               <Network size={17} />
@@ -1039,6 +1038,7 @@ export default function IncidentDetails() {
             <div className="incident-detail-context-grid">
               <div>
                 <span>RELATED EVENTS</span>
+
                 <div
                   style={{
                     display: 'flex',
@@ -1047,26 +1047,39 @@ export default function IncidentDetails() {
                     marginTop: '6px',
                   }}
                 >
-                  {incident.relatedEventIds.length > 0 ? (
-                    incident.relatedEventIds.map((eventId) => (
-                      <Link
-                        key={eventId}
-                        to={`/soc/events/${eventId}`}
-                        style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '5px',
-                          color: '#67e8f9',
-                          fontSize: '12px',
-                          textDecoration: 'none',
-                        }}
-                      >
-                        {eventId}
-                        <ExternalLink size={11} />
-                      </Link>
-                    ))
+                  {incident.relatedEventIds.length >
+                  0 ? (
+                    incident.relatedEventIds.map(
+                      (eventId) => (
+                        <Link
+                          key={eventId}
+                          to={`/soc/events/${eventId}`}
+                          style={{
+                            display:
+                              'inline-flex',
+                            alignItems:
+                              'center',
+                            gap: '5px',
+                            color: '#67e8f9',
+                            fontSize: '12px',
+                            textDecoration:
+                              'none',
+                          }}
+                        >
+                          {eventId}
+                          <ExternalLink
+                            size={11}
+                          />
+                        </Link>
+                      ),
+                    )
                   ) : (
-                    <span style={{ color: '#64748b', fontSize: '12px' }}>
+                    <span
+                      style={{
+                        color: '#64748b',
+                        fontSize: '12px',
+                      }}
+                    >
                       No related events
                     </span>
                   )}
@@ -1075,6 +1088,7 @@ export default function IncidentDetails() {
 
               <div>
                 <span>RELATED ALERTS</span>
+
                 <div
                   style={{
                     display: 'flex',
@@ -1083,26 +1097,39 @@ export default function IncidentDetails() {
                     marginTop: '6px',
                   }}
                 >
-                  {incident.relatedAlertIds.length > 0 ? (
-                    incident.relatedAlertIds.map((alertId) => (
-                      <Link
-                        key={alertId}
-                        to={`/alerts/${alertId}`}
-                        style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '5px',
-                          color: '#67e8f9',
-                          fontSize: '12px',
-                          textDecoration: 'none',
-                        }}
-                      >
-                        {alertId}
-                        <ExternalLink size={11} />
-                      </Link>
-                    ))
+                  {incident.relatedAlertIds.length >
+                  0 ? (
+                    incident.relatedAlertIds.map(
+                      (alertId) => (
+                        <Link
+                          key={alertId}
+                          to={`/alerts/${alertId}`}
+                          style={{
+                            display:
+                              'inline-flex',
+                            alignItems:
+                              'center',
+                            gap: '5px',
+                            color: '#fbbf24',
+                            fontSize: '12px',
+                            textDecoration:
+                              'none',
+                          }}
+                        >
+                          {alertId}
+                          <ExternalLink
+                            size={11}
+                          />
+                        </Link>
+                      ),
+                    )
                   ) : (
-                    <span style={{ color: '#64748b', fontSize: '12px' }}>
+                    <span
+                      style={{
+                        color: '#64748b',
+                        fontSize: '12px',
+                      }}
+                    >
                       No related alerts
                     </span>
                   )}
@@ -1117,7 +1144,10 @@ export default function IncidentDetails() {
                 <span className="incident-detail-panel-kicker">
                   UNIFIED CASE CORRELATION
                 </span>
-                <h2>Investigation Graph</h2>
+
+                <h2>
+                  Investigation Graph
+                </h2>
               </div>
 
               <Network size={17} />
@@ -1126,34 +1156,57 @@ export default function IncidentDetails() {
             {investigationLoading ? (
               <div
                 style={{
-                  padding: '18px 0',
+                  padding: '20px 0',
                   color: '#64748b',
                   fontSize: '13px',
                 }}
               >
-                Loading correlated event, alert, and response data...
+                Loading correlated event,
+                alert, and response data...
               </div>
             ) : investigation ? (
               <>
                 <div className="incident-detail-context-grid">
                   <div>
                     <span>RELATED EVENTS</span>
-                    <strong>{investigation.events.length}</strong>
+                    <strong>
+                      {
+                        investigation.events
+                          .length
+                      }
+                    </strong>
                   </div>
 
                   <div>
                     <span>RELATED ALERTS</span>
-                    <strong>{investigation.alerts.length}</strong>
+                    <strong>
+                      {
+                        investigation.alerts
+                          .length
+                      }
+                    </strong>
                   </div>
 
                   <div>
                     <span>EVENT ACTIONS</span>
-                    <strong>{investigation.event_actions.length}</strong>
+                    <strong>
+                      {
+                        investigation
+                          .event_actions
+                          .length
+                      }
+                    </strong>
                   </div>
 
                   <div>
                     <span>INCIDENT ACTIONS</span>
-                    <strong>{investigation.incident_actions.length}</strong>
+                    <strong>
+                      {
+                        investigation
+                          .incident_actions
+                          .length
+                      }
+                    </strong>
                   </div>
                 </div>
 
@@ -1165,150 +1218,78 @@ export default function IncidentDetails() {
                     gap: '9px',
                   }}
                 >
-                  {investigation.events.map((event) => (
-                    <Link
-                      key={event.event_id}
-                      to={`/soc/events/${event.event_id}`}
-                      style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '6px',
-                        padding: '7px 10px',
-                        borderRadius: '7px',
-                        border: '1px solid rgba(34, 211, 238, 0.2)',
-                        background: 'rgba(34, 211, 238, 0.05)',
-                        color: '#67e8f9',
-                        fontSize: '11px',
-                        textDecoration: 'none',
-                      }}
-                    >
-                      EVENT · {event.event_id}
-                      <ExternalLink size={10} />
-                    </Link>
-                  ))}
+                  {investigation.events.map(
+                    (event) => (
+                      <Link
+                        key={event.event_id}
+                        to={`/soc/events/${event.event_id}`}
+                        style={{
+                          display:
+                            'inline-flex',
+                          alignItems:
+                            'center',
+                          gap: '6px',
+                          padding:
+                            '7px 10px',
+                          borderRadius: '7px',
+                          border:
+                            '1px solid rgba(34, 211, 238, 0.2)',
+                          background:
+                            'rgba(34, 211, 238, 0.05)',
+                          color: '#67e8f9',
+                          fontSize: '11px',
+                          textDecoration:
+                            'none',
+                        }}
+                      >
+                        EVENT ·{' '}
+                        {event.event_id}
 
-                  {investigation.alerts.map((alertId) => (
-                    <Link
-                      key={alertId}
-                      to={`/alerts/${alertId}`}
-                      style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '6px',
-                        padding: '7px 10px',
-                        borderRadius: '7px',
-                        border: '1px solid rgba(251, 191, 36, 0.2)',
-                        background: 'rgba(251, 191, 36, 0.05)',
-                        color: '#fbbf24',
-                        fontSize: '11px',
-                        textDecoration: 'none',
-                      }}
-                    >
-                      ALERT · {alertId}
-                      <ExternalLink size={10} />
-                    </Link>
-                  ))}
-                </div>
+                        <ExternalLink
+                          size={10}
+                        />
+                      </Link>
+                    ),
+                  )}
 
-                <div
-                  style={{
-                    marginTop: '18px',
-                    borderTop: '1px solid rgba(51, 65, 85, 0.45)',
-                    paddingTop: '14px',
-                  }}
-                >
-                  <span
-                    className="incident-detail-panel-kicker"
-                    style={{ fontSize: '10px' }}
-                  >
-                    BACKEND INVESTIGATION TIMELINE
-                  </span>
+                  {investigation.alerts.map(
+                    (alertId) => (
+                      <Link
+                        key={alertId}
+                        to={`/alerts/${alertId}`}
+                        style={{
+                          display:
+                            'inline-flex',
+                          alignItems:
+                            'center',
+                          gap: '6px',
+                          padding:
+                            '7px 10px',
+                          borderRadius: '7px',
+                          border:
+                            '1px solid rgba(251, 191, 36, 0.2)',
+                          background:
+                            'rgba(251, 191, 36, 0.05)',
+                          color: '#fbbf24',
+                          fontSize: '11px',
+                          textDecoration:
+                            'none',
+                        }}
+                      >
+                        ALERT · {alertId}
 
-                  {investigation.timeline.length > 0 ? (
-                    <div
-                      style={{
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: '10px',
-                        marginTop: '10px',
-                      }}
-                    >
-                      {investigation.timeline.slice(0, 10).map((item, index) => (
-                        <div
-                          key={`${item.reference_id}-${item.time}-${index}`}
-                          style={{
-                            display: 'grid',
-                            gridTemplateColumns: '86px minmax(0, 1fr)',
-                            gap: '12px',
-                            padding: '9px 0',
-                            borderBottom:
-                              '1px solid rgba(51, 65, 85, 0.28)',
-                          }}
-                        >
-                          <span
-                            style={{
-                              color: '#64748b',
-                              fontSize: '10px',
-                              fontFamily: 'monospace',
-                            }}
-                          >
-                            {formatDate(item.time)}
-                          </span>
-
-                          <div>
-                            <strong
-                              style={{
-                                display: 'block',
-                                color: '#cbd5e1',
-                                fontSize: '12px',
-                              }}
-                            >
-                              {item.title}
-                            </strong>
-
-                            <span
-                              style={{
-                                display: 'block',
-                                marginTop: '3px',
-                                color: '#64748b',
-                                fontSize: '11px',
-                                lineHeight: 1.5,
-                              }}
-                            >
-                              {item.description}
-                            </span>
-
-                            <span
-                              style={{
-                                display: 'block',
-                                marginTop: '4px',
-                                color: '#67e8f9',
-                                fontSize: '10px',
-                              }}
-                            >
-                              {item.actor} · {item.reference_id}
-                            </span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div
-                      style={{
-                        padding: '12px 0',
-                        color: '#64748b',
-                        fontSize: '12px',
-                      }}
-                    >
-                      No correlated activity has been recorded yet.
-                    </div>
+                        <ExternalLink
+                          size={10}
+                        />
+                      </Link>
+                    ),
                   )}
                 </div>
               </>
             ) : (
               <div
                 style={{
-                  padding: '18px 0',
+                  padding: '20px 0',
                   color: '#64748b',
                   fontSize: '13px',
                 }}
@@ -1325,6 +1306,7 @@ export default function IncidentDetails() {
                 <span className="incident-detail-panel-kicker">
                   INVESTIGATION TIMELINE
                 </span>
+
                 <h2>Case Activity</h2>
               </div>
 
@@ -1333,45 +1315,94 @@ export default function IncidentDetails() {
 
             <div className="incident-detail-timeline">
               {investigationLoading ? (
-                <div style={{ padding: '20px 0', color: '#64748b', fontSize: '13px' }}>
-                  Loading unified investigation timeline...
+                <div
+                  style={{
+                    padding: '20px 0',
+                    color: '#64748b',
+                    fontSize: '13px',
+                  }}
+                >
+                  Loading investigation
+                  timeline...
                 </div>
               ) : investigationError ? (
-                <div style={{ padding: '20px 0', color: '#fca5a5', fontSize: '13px' }}>
-                  Unable to load investigation timeline: {investigationError}
+                <div
+                  style={{
+                    padding: '20px 0',
+                    color: '#fca5a5',
+                    fontSize: '13px',
+                  }}
+                >
+                  Unable to load
+                  investigation timeline:{' '}
+                  {investigationError}
                 </div>
-              ) : investigation?.timeline?.length ? (
-                investigation.timeline.map((event, index) => {
-                  const eventType = investigationTimelineType(event)
-                  return (
+              ) : investigationTimeline.length >
+                0 ? (
+                investigationTimeline.map(
+                  (event, index) => (
                     <div
                       className="incident-detail-timeline-item"
                       key={`${event.reference_id}-${event.time}-${index}`}
                     >
-                      <div className={`incident-detail-timeline-icon incident-detail-timeline-${eventType}`}>
-                        {timelineIcon(eventType)}
+                      <div
+                        className={`incident-detail-timeline-icon incident-detail-timeline-${event.source === 'EVENT' ? 'detection' : event.source === 'INCIDENT_ACTION' ? 'containment' : 'investigation'}`}
+                      >
+                        {timelineIcon(
+                          event.source,
+                          event.title,
+                        )}
                       </div>
+
                       <div className="incident-detail-timeline-line" />
+
                       <div className="incident-detail-timeline-content">
                         <div className="incident-detail-timeline-top">
-                          <strong>{event.title}</strong>
-                          <span>{formatDate(event.time)}</span>
+                          <strong>
+                            {event.title}
+                          </strong>
+
+                          <span>
+                            {formatDate(
+                              event.time,
+                            )}
+                          </span>
                         </div>
-                        <p>{event.description}</p>
+
+                        <p>
+                          {event.description}
+                        </p>
+
                         <div className="incident-detail-timeline-actor">
                           <User size={12} />
+
                           {event.actor}
-                          <span style={{ marginLeft: '8px', color: '#475569' }}>
+
+                          <span
+                            style={{
+                              marginLeft:
+                                '8px',
+                              color:
+                                '#475569',
+                            }}
+                          >
                             {event.reference_id}
                           </span>
                         </div>
                       </div>
                     </div>
-                  )
-                })
+                  ),
+                )
               ) : (
-                <div style={{ padding: '20px 0', color: '#64748b', fontSize: '13px' }}>
-                  No investigation timeline events have been recorded.
+                <div
+                  style={{
+                    padding: '20px 0',
+                    color: '#64748b',
+                    fontSize: '13px',
+                  }}
+                >
+                  No investigation timeline
+                  events have been recorded.
                 </div>
               )}
             </div>
@@ -1383,6 +1414,7 @@ export default function IncidentDetails() {
                 <span className="incident-detail-panel-kicker">
                   RESPONSE WORKFLOW
                 </span>
+
                 <h2>Case Actions</h2>
               </div>
 
@@ -1392,17 +1424,22 @@ export default function IncidentDetails() {
             <div className="incident-detail-actions">
               <button
                 type="button"
-                disabled={actionLoading || incident.status === 'CONTAINED'}
+                disabled={
+                  actionLoading ||
+                  incident.status ===
+                    'CONTAINED'
+                }
                 onClick={() =>
                   executeIncidentAction(
                     'CONTAIN_ENDPOINT',
                     'Endpoint containment action recorded successfully.',
-                    'CONTAINED',
                   )
                 }
               >
                 <ShieldAlert size={15} />
-                {incident.status === 'CONTAINED'
+
+                {incident.status ===
+                'CONTAINED'
                   ? 'ENDPOINT CONTAINED'
                   : actionLoading
                     ? 'PROCESSING...'
@@ -1420,7 +1457,10 @@ export default function IncidentDetails() {
                 }
               >
                 <Terminal size={15} />
-                {actionLoading ? 'PROCESSING...' : 'COLLECT LIVE DATA'}
+
+                {actionLoading
+                  ? 'PROCESSING...'
+                  : 'COLLECT LIVE DATA'}
               </button>
 
               <button
@@ -1434,22 +1474,30 @@ export default function IncidentDetails() {
                 }
               >
                 <FileSearch size={15} />
-                {actionLoading ? 'PROCESSING...' : 'PRESERVE EVIDENCE'}
+
+                {actionLoading
+                  ? 'PROCESSING...'
+                  : 'PRESERVE EVIDENCE'}
               </button>
 
               <button
                 type="button"
-                disabled={actionLoading || incident.status === 'RESOLVED'}
+                disabled={
+                  actionLoading ||
+                  incident.status ===
+                    'RESOLVED'
+                }
                 onClick={() =>
                   executeIncidentAction(
                     'MARK_RESOLVED',
                     'Incident status updated to RESOLVED.',
-                    'RESOLVED',
                   )
                 }
               >
                 <CheckCircle2 size={15} />
-                {incident.status === 'RESOLVED'
+
+                {incident.status ===
+                'RESOLVED'
                   ? 'ALREADY RESOLVED'
                   : actionLoading
                     ? 'PROCESSING...'
@@ -1464,80 +1512,130 @@ export default function IncidentDetails() {
                 <span className="incident-detail-panel-kicker">
                   RESPONSE HISTORY
                 </span>
-                <h2>Recorded Actions</h2>
+
+                <h2>
+                  Recorded Actions
+                </h2>
               </div>
 
               <Clock3 size={17} />
             </div>
 
-            {incidentActions.length > 0 ? (
+            {incidentActions.length >
+            0 ? (
               <div
                 style={{
                   display: 'flex',
-                  flexDirection: 'column',
+                  flexDirection:
+                    'column',
                   gap: '10px',
                 }}
               >
-                {incidentActions.map((item) => (
-                  <div
-                    key={item.action_id}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      gap: '14px',
-                      padding: '11px 12px',
-                      borderRadius: '8px',
-                      border: '1px solid rgba(51, 65, 85, 0.55)',
-                      background: 'rgba(15, 23, 42, 0.42)',
-                    }}
-                  >
-                    <div style={{ minWidth: 0 }}>
-                      <strong
+                {incidentActions.map(
+                  (item) => (
+                    <div
+                      key={item.action_id}
+                      style={{
+                        display: 'flex',
+                        alignItems:
+                          'center',
+                        justifyContent:
+                          'space-between',
+                        gap: '14px',
+                        padding:
+                          '11px 12px',
+                        borderRadius:
+                          '8px',
+                        border:
+                          '1px solid rgba(51, 65, 85, 0.55)',
+                        background:
+                          'rgba(15, 23, 42, 0.42)',
+                      }}
+                    >
+                      <div
                         style={{
-                          display: 'block',
-                          color: '#cbd5e1',
-                          fontSize: '12px',
-                          letterSpacing: '0.03em',
+                          minWidth: 0,
                         }}
                       >
-                        {item.action.replaceAll('_', ' ')}
-                      </strong>
-                      <span
-                        style={{
-                          display: 'block',
-                          marginTop: '4px',
-                          color: '#64748b',
-                          fontSize: '11px',
-                        }}
-                      >
-                        {item.action_id} · {item.analyst}
-                      </span>
-                    </div>
+                        <strong
+                          style={{
+                            display:
+                              'block',
+                            color:
+                              '#cbd5e1',
+                            fontSize:
+                              '12px',
+                            letterSpacing:
+                              '0.03em',
+                          }}
+                        >
+                          {item.action.replaceAll(
+                            '_',
+                            ' ',
+                          )}
+                        </strong>
 
-                    <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                      <strong
+                        <span
+                          style={{
+                            display:
+                              'block',
+                            marginTop:
+                              '4px',
+                            color:
+                              '#64748b',
+                            fontSize:
+                              '11px',
+                          }}
+                        >
+                          {item.action_id}
+                          {' · '}
+                          {item.analyst}
+                        </span>
+                      </div>
+
+                      <div
                         style={{
-                          display: 'block',
-                          color: '#67e8f9',
-                          fontSize: '11px',
+                          textAlign:
+                            'right',
+                          flexShrink: 0,
                         }}
                       >
-                        {item.status.replaceAll('_', ' ')}
-                      </strong>
-                      <span
-                        style={{
-                          display: 'block',
-                          marginTop: '4px',
-                          color: '#64748b',
-                          fontSize: '10px',
-                        }}
-                      >
-                        {formatDate(item.created_at)}
-                      </span>
+                        <strong
+                          style={{
+                            display:
+                              'block',
+                            color:
+                              '#67e8f9',
+                            fontSize:
+                              '11px',
+                          }}
+                        >
+                          {item.status.replaceAll(
+                            '_',
+                            ' ',
+                          )}
+                        </strong>
+
+                        <span
+                          style={{
+                            display:
+                              'block',
+                            marginTop:
+                              '4px',
+                            color:
+                              '#64748b',
+                            fontSize:
+                              '10px',
+                          }}
+                        >
+                          {formatDate(
+                            item.created_at,
+                          )}
+                        </span>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ),
+                )}
               </div>
             ) : (
               <div
@@ -1547,7 +1645,9 @@ export default function IncidentDetails() {
                   fontSize: '13px',
                 }}
               >
-                No response actions have been recorded for this incident.
+                No response actions have
+                been recorded for this
+                incident.
               </div>
             )}
           </section>
@@ -1560,7 +1660,10 @@ export default function IncidentDetails() {
                 <span className="incident-detail-panel-kicker">
                   CASE OWNER
                 </span>
-                <h2>Assigned Analyst</h2>
+
+                <h2>
+                  Assigned Analyst
+                </h2>
               </div>
 
               <User size={17} />
@@ -1572,8 +1675,13 @@ export default function IncidentDetails() {
               </div>
 
               <div>
-                <strong>{incident.analyst}</strong>
-                <span>Security Operations</span>
+                <strong>
+                  {incident.analyst}
+                </strong>
+
+                <span>
+                  Security Operations
+                </span>
               </div>
             </div>
           </section>
@@ -1584,7 +1692,10 @@ export default function IncidentDetails() {
                 <span className="incident-detail-panel-kicker">
                   AFFECTED ASSET
                 </span>
-                <h2>{incident.endpoint}</h2>
+
+                <h2>
+                  {incident.endpoint}
+                </h2>
               </div>
 
               <Network size={17} />
@@ -1593,8 +1704,10 @@ export default function IncidentDetails() {
             <div className="incident-detail-asset">
               <div>
                 <span>HOST STATUS</span>
+
                 <strong>
-                  {incident.status === 'CONTAINED'
+                  {incident.status ===
+                  'CONTAINED'
                     ? 'CONTAINED'
                     : 'MONITORED'}
                 </strong>
@@ -1602,12 +1715,18 @@ export default function IncidentDetails() {
 
               <div>
                 <span>LAST TELEMETRY</span>
-                <strong>{incident.lastObserved}</strong>
+
+                <strong>
+                  {incident.updated}
+                </strong>
               </div>
 
               <div>
                 <span>CASE SOURCE</span>
-                <strong>{incident.source}</strong>
+
+                <strong>
+                  {detectionSource}
+                </strong>
               </div>
             </div>
           </section>
@@ -1616,21 +1735,37 @@ export default function IncidentDetails() {
             <div className="incident-detail-panel-header">
               <div>
                 <span className="incident-detail-panel-kicker">
-                  MITRE ATT&CK
+                  EVENT CORRELATION
                 </span>
-                <h2>Technique Mapping</h2>
+
+                <h2>
+                  Backend Evidence
+                </h2>
               </div>
 
               <ShieldAlert size={17} />
             </div>
 
             <div className="incident-detail-technique">
-              <strong>{incident.technique}</strong>
-              <span>{incident.techniqueName}</span>
+              <strong>
+                {investigationEvents.length >
+                0
+                  ? `${investigationEvents.length} correlated event${investigationEvents.length === 1 ? '' : 's'}`
+                  : 'No correlated events'}
+              </strong>
+
+              <span>
+                {investigationAlerts.length >
+                0
+                  ? `${investigationAlerts.length} related alert${investigationAlerts.length === 1 ? '' : 's'}`
+                  : 'No related alerts'}
+              </span>
 
               <p>
-                Activity associated with this case has been mapped to the
-                corresponding MITRE ATT&CK technique for investigation context.
+                Investigation context shown
+                here is generated from the
+                CyberSentinel backend
+                correlation data.
               </p>
             </div>
           </section>
@@ -1643,15 +1778,18 @@ export default function IncidentDetails() {
             <span className="incident-detail-panel-kicker">
               DIGITAL EVIDENCE
             </span>
-            <h2>Collected Evidence</h2>
+
+            <h2>
+              Collected Evidence
+            </h2>
           </div>
 
           <FileSearch size={17} />
         </div>
 
         <div className="incident-detail-evidence-grid">
-          {incident.evidence.length > 0 ? (
-            incident.evidence.map((item) => (
+          {evidence.length > 0 ? (
+            evidence.map((item) => (
               <div
                 className="incident-detail-evidence-card"
                 key={item.id}
@@ -1682,8 +1820,9 @@ export default function IncidentDetails() {
                 fontSize: '13px',
               }}
             >
-              Detailed evidence is not available from the current Incident
-              API.
+              No detailed evidence has
+              been returned by the backend
+              investigation API.
             </div>
           )}
         </div>

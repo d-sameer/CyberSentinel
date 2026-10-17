@@ -22,6 +22,7 @@ import {
   ShieldCheck,
   Terminal,
   Users,
+  UserCog,
   Settings2,
   FileCog,
 } from 'lucide-react'
@@ -154,6 +155,11 @@ const navigationItems = [
     label: 'Identity',
     path: '/identity',
     icon: KeyRound,
+  },
+  {
+    label: 'Access Governance',
+    path: '/access-governance',
+    icon: UserCog,
   },
   {
     label: 'Vulnerabilities',

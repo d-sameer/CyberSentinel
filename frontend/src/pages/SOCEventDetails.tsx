@@ -525,7 +525,7 @@ function SOCEventDetails() {
 
       try {
         const response = await fetch(
-          `http://127.0.0.1:8000/api/events/${eventId}`,
+          `http://127.0.0.1:8001/api/events/${eventId}`,
         )
 
         if (!response.ok) {
@@ -632,7 +632,7 @@ function SOCEventDetails() {
   async function loadResponseActions(currentEventId: string) {
     try {
       const response = await fetch(
-        `http://127.0.0.1:8000/api/events/${currentEventId}/actions`,
+        `http://127.0.0.1:8001/api/events/${currentEventId}/actions`,
       )
 
       if (!response.ok) {
@@ -676,7 +676,7 @@ function SOCEventDetails() {
 
     try {
       const response = await fetch(
-        `http://127.0.0.1:8000/api/events/${eventId}/actions`,
+        `http://127.0.0.1:8001/api/events/${eventId}/actions`,
         {
           method: 'POST',
           headers: {

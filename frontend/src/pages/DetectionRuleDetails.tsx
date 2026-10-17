@@ -14,7 +14,7 @@ import {
   ShieldCheck,
   Terminal,
 } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 
 type RuleSeverity = 'INFO' | 'WARNING' | 'HIGH'
@@ -446,7 +446,7 @@ type RuleState = {
   source: string
 }
 
-const API_BASE_URL = 'http://127.0.0.1:8000'
+const API_BASE_URL = 'http://127.0.0.1:8001'
 
 const RESPONSE_ACTIONS = [
   { key: 'ENABLE_RULE', label: 'Enable Rule' },
@@ -454,6 +454,62 @@ const RESPONSE_ACTIONS = [
   { key: 'TEST_RULE', label: 'Test Rule' },
   { key: 'REVIEW_RULE', label: 'Review Rule' },
 ] as const
+
+
+type RawRecord = Record<string, unknown>
+
+function unwrapObject(value: unknown): RawRecord {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {}
+  const record = value as RawRecord
+  const nested = record.data
+  if (nested && typeof nested === 'object' && !Array.isArray(nested)) {
+    return nested as RawRecord
+  }
+  return record
+}
+
+function unwrapArray(value: unknown): unknown[] {
+  if (Array.isArray(value)) return value
+  if (!value || typeof value !== 'object') return []
+  const record = value as RawRecord
+  for (const key of ['items', 'results', 'actions', 'data']) {
+    if (Array.isArray(record[key])) return record[key] as unknown[]
+  }
+  if (record.data && typeof record.data === 'object') {
+    const nested = record.data as RawRecord
+    for (const key of ['items', 'results', 'actions']) {
+      if (Array.isArray(nested[key])) return nested[key] as unknown[]
+    }
+  }
+  return []
+}
+
+function normalizeRuleState(value: unknown): RuleState | null {
+  const record = unwrapObject(value)
+  const rawStatus = String(record.status ?? record.rule_status ?? '').toUpperCase()
+  if (rawStatus !== 'ENABLED' && rawStatus !== 'DISABLED') return null
+  return {
+    rule_id: String(record.rule_id ?? record.ruleId ?? record.id ?? ''),
+    status: rawStatus,
+    source: String(record.source ?? 'API'),
+  }
+}
+
+function normalizeRuleAction(value: unknown, fallbackRuleId: string): RuleAction | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null
+  const record = value as RawRecord
+  const action = String(record.action ?? record.action_type ?? '')
+  if (!action) return null
+  return {
+    id: Number(record.id ?? 0),
+    action_id: String(record.action_id ?? record.actionId ?? record.id ?? `${action}-${String(record.created_at ?? record.createdAt ?? '')}`),
+    rule_id: String(record.rule_id ?? record.ruleId ?? fallbackRuleId),
+    action,
+    status: String(record.status ?? 'RECORDED'),
+    analyst: String(record.analyst ?? record.created_by ?? record.createdBy ?? 'SOC Analyst'),
+    created_at: String(record.created_at ?? record.createdAt ?? ''),
+  }
+}
 
 function DetectionRuleDetails() {
   const { ruleId } = useParams()
@@ -464,32 +520,42 @@ function DetectionRuleDetails() {
   const [backendConnected, setBackendConnected] = useState(false)
 
   const loadBackendData = async () => {
-    if (!ruleId) return
+    if (!ruleId) {
+      setBackendConnected(false)
+      return
+    }
 
     try {
+      const encodedRuleId = encodeURIComponent(ruleId)
       const [stateResponse, actionsResponse] = await Promise.all([
-        fetch(`${API_BASE_URL}/api/detection-rule-actions/${ruleId}/state`),
-        fetch(`${API_BASE_URL}/api/detection-rule-actions/${ruleId}/actions`),
+        fetch(`${API_BASE_URL}/api/detection-rule-actions/${encodedRuleId}/state`),
+        fetch(`${API_BASE_URL}/api/detection-rule-actions/${encodedRuleId}/actions`),
       ])
 
       if (!stateResponse.ok || !actionsResponse.ok) {
         throw new Error('Detection rule backend unavailable')
       }
 
-      const stateData = (await stateResponse.json()) as RuleState
-      const actionsData = (await actionsResponse.json()) as RuleAction[]
+      const [statePayload, actionsPayload]: [unknown, unknown] = await Promise.all([
+        stateResponse.json(),
+        actionsResponse.json(),
+      ])
+
+      const stateData = normalizeRuleState(statePayload)
+      const actionsData = unwrapArray(actionsPayload)
+        .map((item) => normalizeRuleAction(item, ruleId))
+        .filter((item): item is RuleAction => item !== null)
 
       setBackendState(stateData)
       setActions(actionsData)
       setBackendConnected(true)
-    } catch {
+    } catch (error) {
+      console.error('Failed to load detection rule actions:', error)
       setBackendConnected(false)
+      setBackendState(null)
+      setActions([])
     }
   }
-
-  useEffect(() => {
-    void loadBackendData()
-  }, [ruleId])
 
   const executeAction = async (action: string) => {
     if (!ruleId) return
@@ -499,7 +565,7 @@ function DetectionRuleDetails() {
 
     try {
       const response = await fetch(
-        `${API_BASE_URL}/api/detection-rule-actions/${ruleId}/actions`,
+        `${API_BASE_URL}/api/detection-rule-actions/${encodeURIComponent(ruleId)}/actions`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -515,8 +581,9 @@ function DetectionRuleDetails() {
         throw new Error(errorBody?.detail ?? 'Detection rule action failed')
       }
 
-      const created = (await response.json()) as RuleAction
-      setActionMessage(`${action.replaceAll('_', ' ')} completed — ${created.status}`)
+      const createdPayload: unknown = await response.json()
+      const created = normalizeRuleAction(createdPayload, ruleId)
+      setActionMessage(`${action.replaceAll('_', ' ')} completed${created?.status ? ` — ${created.status}` : ''}`)
       await loadBackendData()
     } catch (error) {
       setActionMessage(
@@ -970,7 +1037,7 @@ function DetectionRuleDetails() {
               <div style={{ display: 'grid', gap: '8px' }}>
                 {actions.map((item) => (
                   <div
-                    key={item.action_id}
+                    key={`${item.action_id}-${item.created_at}`}
                     style={{
                       display: 'flex',
                       justifyContent: 'space-between',

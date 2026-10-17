@@ -88,7 +88,7 @@ type ApiIncident = {
   updated_at: string
 }
 
-const API_BASE = 'http://127.0.0.1:8000'
+const API_BASE = 'http://127.0.0.1:8001'
 
 function formatTime(value: string) {
   const date = new Date(value)

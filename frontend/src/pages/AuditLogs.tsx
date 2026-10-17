@@ -2,7 +2,6 @@ import {
   Activity,
   AlertTriangle,
   CheckCircle2,
-  Clock3,
   FileText,
   Filter,
   KeyRound,
@@ -12,7 +11,8 @@ import {
   User,
   UserCog,
 } from 'lucide-react'
-import { useMemo, useState } from 'react'
+
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 
 type AuditCategory =
@@ -30,6 +30,7 @@ type AuditStatus =
   | 'SUCCESS'
   | 'REVIEW'
   | 'BLOCKED'
+  | 'REVIEWED'
 
 type AuditLog = {
   id: string
@@ -44,140 +45,68 @@ type AuditLog = {
   description: string
 }
 
-const auditLogs: AuditLog[] = [
-  {
-    id: 'LOG-001',
-    timestamp: 'Today, 10:06:14',
-    action: 'PowerShell Execution',
-    category: 'SECURITY',
-    severity: 'HIGH',
-    status: 'REVIEW',
-    user: 'Sameer',
-    endpoint: 'WIN-01',
-    sourceIp: '192.168.1.101',
-    description:
-      'PowerShell launched with ExecutionPolicy Bypass and executed update.ps1.',
-  },
-  {
-    id: 'LOG-002',
-    timestamp: 'Today, 10:05:58',
-    action: 'User Login',
-    category: 'AUTH',
-    severity: 'INFO',
-    status: 'SUCCESS',
-    user: 'Sameer',
-    endpoint: 'WIN-01',
-    sourceIp: '192.168.1.101',
-    description:
-      'Interactive user authentication completed successfully.',
-  },
-  {
-    id: 'LOG-003',
-    timestamp: 'Today, 10:06:42',
-    action: 'Outbound Connection',
-    category: 'SECURITY',
-    severity: 'HIGH',
-    status: 'REVIEW',
-    user: 'Sameer',
-    endpoint: 'WIN-01',
-    sourceIp: '192.168.1.101',
-    description:
-      'Outbound HTTPS connection observed after suspicious process execution.',
-  },
-  {
-    id: 'LOG-004',
-    timestamp: 'Today, 10:18:33',
-    action: 'Privilege Change',
-    category: 'ADMIN',
-    severity: 'WARNING',
-    status: 'REVIEW',
-    user: 'admin',
-    endpoint: 'LINUX-01',
-    sourceIp: '192.168.1.104',
-    description:
-      'Administrative privileges were assigned to an existing account.',
-  },
-  {
-    id: 'LOG-005',
-    timestamp: 'Today, 10:25:11',
-    action: 'Unknown Binary Execution',
-    category: 'SECURITY',
-    severity: 'HIGH',
-    status: 'REVIEW',
-    user: 'Sameer',
-    endpoint: 'WIN-02',
-    sourceIp: '192.168.1.103',
-    description:
-      'Unsigned executable launched from the user temporary directory.',
-  },
-  {
-    id: 'LOG-006',
-    timestamp: 'Today, 10:26:39',
-    action: 'Security File Deletion',
-    category: 'SECURITY',
-    severity: 'HIGH',
-    status: 'BLOCKED',
-    user: 'SYSTEM',
-    endpoint: 'WIN-02',
-    sourceIp: '192.168.1.103',
-    description:
-      'Protected security configuration file deletion was blocked.',
-  },
-  {
-    id: 'LOG-007',
-    timestamp: 'Today, 10:27:12',
-    action: 'Authentication Failure',
-    category: 'AUTH',
-    severity: 'WARNING',
-    status: 'REVIEW',
-    user: 'unknown',
-    endpoint: 'WIN-02',
-    sourceIp: '10.0.0.45',
-    description:
-      'Multiple failed authentication attempts were recorded.',
-  },
-  {
-    id: 'LOG-008',
-    timestamp: 'Today, 10:31:04',
-    action: 'SSH Key Modification',
-    category: 'ADMIN',
-    severity: 'WARNING',
-    status: 'SUCCESS',
-    user: 'admin',
-    endpoint: 'LINUX-01',
-    sourceIp: '192.168.1.104',
-    description:
-      'authorized_keys configuration was modified during an SSH session.',
-  },
-  {
-    id: 'LOG-009',
-    timestamp: 'Today, 10:42:18',
-    action: 'Endpoint Policy Update',
-    category: 'ADMIN',
-    severity: 'INFO',
-    status: 'SUCCESS',
-    user: 'SOC Analyst',
-    endpoint: 'WIN-01',
-    sourceIp: '192.168.1.10',
-    description:
-      'Endpoint monitoring policy was updated successfully.',
-  },
-  {
-    id: 'LOG-010',
-    timestamp: 'Today, 10:48:51',
-    action: 'System Service Start',
-    category: 'SYSTEM',
-    severity: 'INFO',
-    status: 'SUCCESS',
-    user: 'SYSTEM',
-    endpoint: 'WIN-02',
-    sourceIp: '192.168.1.103',
-    description:
-      'Windows security monitoring service started successfully.',
-  },
-]
+type RawAuditLog = Record<string, unknown>
+
+const asText = (value: unknown, fallback = '—'): string => {
+  if (value === null || value === undefined || value === '') return fallback
+  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+    return String(value)
+  }
+  return fallback
+}
+
+const firstValue = (item: RawAuditLog, ...keys: string[]): unknown => {
+  for (const key of keys) {
+    if (item[key] !== undefined && item[key] !== null && item[key] !== '') return item[key]
+  }
+  return undefined
+}
+
+const normalizeCategory = (value: unknown): AuditCategory => {
+  const normalized = asText(value, 'SYSTEM').trim().toUpperCase().replace(/[ -]+/g, '_')
+  if (['AUTH', 'AUTHENTICATION', 'LOGIN'].includes(normalized)) return 'AUTH'
+  if (['ADMIN', 'ADMINISTRATIVE', 'ADMINISTRATION'].includes(normalized)) return 'ADMIN'
+  if (['SECURITY', 'THREAT', 'DETECTION'].includes(normalized)) return 'SECURITY'
+  return 'SYSTEM'
+}
+
+const normalizeSeverity = (value: unknown): AuditSeverity => {
+  const normalized = asText(value, 'INFO').trim().toUpperCase()
+  if (['CRITICAL', 'HIGH', 'SEVERE'].includes(normalized)) return 'HIGH'
+  if (['WARNING', 'WARN', 'MEDIUM', 'MODERATE'].includes(normalized)) return 'WARNING'
+  return 'INFO'
+}
+
+const normalizeStatus = (value: unknown): AuditStatus => {
+  const normalized = asText(value, 'SUCCESS').trim().toUpperCase().replace(/[ -]+/g, '_')
+  if (['BLOCKED', 'DENIED', 'FAILED', 'FAILURE'].includes(normalized)) return 'BLOCKED'
+  if (['REVIEWED', 'RESOLVED', 'CLOSED'].includes(normalized)) return 'REVIEWED'
+  if (['REVIEW', 'NEEDS_REVIEW', 'PENDING_REVIEW', 'OPEN'].includes(normalized)) return 'REVIEW'
+  return 'SUCCESS'
+}
+
+const normalizeAuditLog = (raw: RawAuditLog, index: number): AuditLog => {
+  const id = asText(firstValue(raw, 'id', 'event_id', 'eventId', 'audit_id', 'auditId', 'log_id', 'logId'), `AUD-${index + 1}`)
+  const rawTimestamp = firstValue(raw, 'timestamp', 'created_at', 'createdAt', 'event_time', 'eventTime', 'time')
+  let timestamp = asText(rawTimestamp, 'Timestamp unavailable')
+  if (rawTimestamp instanceof Date) timestamp = rawTimestamp.toLocaleString()
+  else if (typeof rawTimestamp === 'number') timestamp = new Date(rawTimestamp).toLocaleString()
+  const action = asText(firstValue(raw, 'action', 'event', 'event_name', 'eventName', 'action_name', 'actionName', 'title'), 'Audit event')
+  const category = normalizeCategory(firstValue(raw, 'category', 'event_category', 'eventCategory', 'type'))
+  const severity = normalizeSeverity(firstValue(raw, 'severity', 'risk_level', 'riskLevel', 'level'))
+  const status = normalizeStatus(firstValue(raw, 'status', 'result', 'outcome', 'event_status', 'eventStatus'))
+  const user = asText(firstValue(raw, 'user', 'username', 'user_name', 'userName', 'actor', 'principal'))
+  const endpoint = asText(firstValue(raw, 'endpoint', 'host', 'hostname', 'device', 'endpoint_name', 'endpointName'))
+  const sourceIp = asText(firstValue(raw, 'sourceIp', 'source_ip', 'sourceIP', 'src_ip', 'srcIp', 'ip_address', 'ipAddress', 'ip'))
+  const description = asText(firstValue(raw, 'description', 'details', 'message', 'summary'), action)
+  return { id, timestamp, action, category, severity, status, user, endpoint, sourceIp, description }
+}
+
+const API_URL = 'http://127.0.0.1:8001/api/audit-logs'
 
 function AuditLogs() {
+  const [auditLogs, setAuditLogs] = useState<AuditLog[]>([])
+
   const [search, setSearch] = useState('')
 
   const [categoryFilter, setCategoryFilter] = useState<
@@ -187,6 +116,57 @@ function AuditLogs() {
   const [severityFilter, setSeverityFilter] = useState<
     'ALL' | AuditSeverity
   >('ALL')
+
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+
+  const loadAuditLogs = async () => {
+    try {
+      setLoading(true)
+      setError('')
+
+      const response = await fetch(API_URL)
+
+      if (!response.ok) {
+        throw new Error(
+          `Audit API request failed with status ${response.status}`,
+        )
+      }
+
+      const payload: unknown = await response.json()
+      const rows = Array.isArray(payload)
+        ? payload
+        : payload && typeof payload === 'object'
+          ? (() => {
+              const record = payload as Record<string, unknown>
+              const nested = record.items ?? record.results ?? record.audit_logs ?? record.auditLogs ?? record.data
+              return Array.isArray(nested) ? nested : []
+            })()
+          : []
+
+      setAuditLogs(
+        rows
+          .filter((item): item is RawAuditLog => !!item && typeof item === 'object' && !Array.isArray(item))
+          .map((item, index) => normalizeAuditLog(item, index)),
+      )
+    } catch (error) {
+      console.error('Audit logs API error:', error)
+
+      setAuditLogs([])
+
+      setError(
+        error instanceof Error
+          ? error.message
+          : 'Unable to load audit logs.',
+      )
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    loadAuditLogs()
+  }, [])
 
   const infoCount = auditLogs.filter(
     (log) => log.severity === 'INFO',
@@ -201,8 +181,30 @@ function AuditLogs() {
   ).length
 
   const reviewCount = auditLogs.filter(
-    (log) => log.status === 'REVIEW',
+    (log) =>
+      log.status === 'REVIEW' ||
+      log.status === 'BLOCKED',
   ).length
+
+  const categoryCounts = useMemo(() => {
+    return {
+      AUTH: auditLogs.filter(
+        (log) => log.category === 'AUTH',
+      ).length,
+
+      ADMIN: auditLogs.filter(
+        (log) => log.category === 'ADMIN',
+      ).length,
+
+      SECURITY: auditLogs.filter(
+        (log) => log.category === 'SECURITY',
+      ).length,
+
+      SYSTEM: auditLogs.filter(
+        (log) => log.category === 'SYSTEM',
+      ).length,
+    }
+  }, [auditLogs])
 
   const filteredLogs = useMemo(() => {
     const query = search.toLowerCase().trim()
@@ -232,7 +234,12 @@ function AuditLogs() {
         matchesSeverity
       )
     })
-  }, [search, categoryFilter, severityFilter])
+  }, [
+    auditLogs,
+    search,
+    categoryFilter,
+    severityFilter,
+  ])
 
   return (
     <div className="page-container">
@@ -260,10 +267,53 @@ function AuditLogs() {
 
         <div className="page-status page-audit-status">
           <span />
-          AUDIT COLLECTION ACTIVE
+          {loading
+            ? 'LOADING AUDIT COLLECTION'
+            : error
+              ? 'AUDIT COLLECTION ERROR'
+              : 'AUDIT COLLECTION ACTIVE'}
         </div>
 
       </div>
+
+      {/* =========================================
+          ERROR
+          ========================================= */}
+
+      {error && (
+        <div
+          style={{
+            marginBottom: '18px',
+            padding: '12px 14px',
+            borderRadius: '9px',
+            border:
+              '1px solid rgba(248, 113, 113, 0.25)',
+            background:
+              'rgba(127, 29, 29, 0.18)',
+            color: '#fca5a5',
+            fontSize: '12px',
+          }}
+        >
+          {error}
+
+          <button
+            type="button"
+            onClick={loadAuditLogs}
+            style={{
+              marginLeft: '12px',
+              border:
+                '1px solid rgba(248, 113, 113, 0.35)',
+              background: 'transparent',
+              color: '#fca5a5',
+              borderRadius: '6px',
+              padding: '5px 9px',
+              cursor: 'pointer',
+            }}
+          >
+            Retry
+          </button>
+        </div>
+      )}
 
       {/* =========================================
           SUMMARY
@@ -432,13 +482,20 @@ function AuditLogs() {
               </div>
 
               <div>
-                <strong>Authentication</strong>
+
+                <strong>
+                  Authentication
+                </strong>
+
                 <span>
                   Login and authentication activity
                 </span>
+
               </div>
 
-              <b>02</b>
+              <b>
+                {String(categoryCounts.AUTH).padStart(2, '0')}
+              </b>
 
             </div>
 
@@ -449,13 +506,20 @@ function AuditLogs() {
               </div>
 
               <div>
-                <strong>Administrative</strong>
+
+                <strong>
+                  Administrative
+                </strong>
+
                 <span>
                   Privilege and configuration changes
                 </span>
+
               </div>
 
-              <b>03</b>
+              <b>
+                {String(categoryCounts.ADMIN).padStart(2, '0')}
+              </b>
 
             </div>
 
@@ -466,13 +530,20 @@ function AuditLogs() {
               </div>
 
               <div>
-                <strong>Security</strong>
+
+                <strong>
+                  Security
+                </strong>
+
                 <span>
                   Threat-related security events
                 </span>
+
               </div>
 
-              <b>04</b>
+              <b>
+                {String(categoryCounts.SECURITY).padStart(2, '0')}
+              </b>
 
             </div>
 
@@ -483,13 +554,20 @@ function AuditLogs() {
               </div>
 
               <div>
-                <strong>System</strong>
+
+                <strong>
+                  System
+                </strong>
+
                 <span>
                   Operating system activity
                 </span>
+
               </div>
 
-              <b>01</b>
+              <b>
+                {String(categoryCounts.SYSTEM).padStart(2, '0')}
+              </b>
 
             </div>
 
@@ -532,8 +610,15 @@ function AuditLogs() {
             </div>
 
             <div>
-              <strong>Authentication Logs</strong>
-              <span>Windows / Linux</span>
+
+              <strong>
+                Authentication Logs
+              </strong>
+
+              <span>
+                Windows / Linux
+              </span>
+
             </div>
 
             <b>ACTIVE</b>
@@ -547,8 +632,15 @@ function AuditLogs() {
             </div>
 
             <div>
-              <strong>Administrative Events</strong>
-              <span>Privilege / Policy changes</span>
+
+              <strong>
+                Administrative Events
+              </strong>
+
+              <span>
+                Privilege / Policy changes
+              </span>
+
             </div>
 
             <b>ACTIVE</b>
@@ -562,8 +654,15 @@ function AuditLogs() {
             </div>
 
             <div>
-              <strong>Security Events</strong>
-              <span>Threat and detection telemetry</span>
+
+              <strong>
+                Security Events
+              </strong>
+
+              <span>
+                Threat and detection telemetry
+              </span>
+
             </div>
 
             <b>ACTIVE</b>
@@ -577,8 +676,15 @@ function AuditLogs() {
             </div>
 
             <div>
-              <strong>System Events</strong>
-              <span>Endpoint operating system logs</span>
+
+              <strong>
+                System Events
+              </strong>
+
+              <span>
+                Endpoint operating system logs
+              </span>
+
             </div>
 
             <b>ACTIVE</b>
@@ -684,7 +790,7 @@ function AuditLogs() {
       <div className="audit-review-strip">
 
         <div className="audit-review-icon">
-          <Clock3 size={15} />
+          <Activity size={15} />
         </div>
 
         <div>
@@ -730,128 +836,152 @@ function AuditLogs() {
 
         <div className="audit-table-wrapper">
 
-          <table className="audit-table">
+          {loading ? (
 
-            <thead>
+            <div
+              style={{
+                padding: '40px 20px',
+                textAlign: 'center',
+                color: '#94a3b8',
+                fontSize: '13px',
+              }}
+            >
+              Loading audit events from CyberSentinel API...
+            </div>
 
-              <tr>
-                <th>EVENT</th>
-                <th>CATEGORY</th>
-                <th>USER</th>
-                <th>ENDPOINT</th>
-                <th>SOURCE IP</th>
-                <th>TIME</th>
-                <th>SEVERITY</th>
-                <th>STATUS</th>
-              </tr>
+          ) : (
 
-            </thead>
+            <table className="audit-table">
 
-            <tbody>
+              <thead>
 
-              {filteredLogs.map((log) => (
+                <tr>
+                  <th>EVENT</th>
+                  <th>CATEGORY</th>
+                  <th>USER</th>
+                  <th>ENDPOINT</th>
+                  <th>SOURCE IP</th>
+                  <th>TIME</th>
+                  <th>SEVERITY</th>
+                  <th>STATUS</th>
+                </tr>
 
-                <tr
-                  key={log.id}
-                  className="audit-clickable-row"
-                >
+              </thead>
 
-                  <td>
+              <tbody>
 
-                    <Link
-                      to={`/audit-logs/${log.id}`}
-                      className="audit-event-link"
-                    >
+                {filteredLogs.map((log) => (
 
-                      <div className="audit-event-cell">
+                  <tr
+                    key={log.id}
+                    className="audit-clickable-row"
+                  >
 
-                        <div className="audit-event-icon">
-                          <FileText size={14} />
+                    <td>
+
+                      <Link
+                        to={`/audit-logs/${log.id}`}
+                        className="audit-event-link"
+                      >
+
+                        <div className="audit-event-cell">
+
+                          <div className="audit-event-icon">
+                            <FileText size={14} />
+                          </div>
+
+                          <div>
+
+                            <strong>
+                              {log.action}
+                            </strong>
+
+                            <span>
+                              {log.id}
+                            </span>
+
+                          </div>
+
                         </div>
 
-                        <div>
+                      </Link>
 
-                          <strong>
-                            {log.action}
-                          </strong>
+                    </td>
 
-                          <span>
-                            {log.id}
-                          </span>
+                    <td>
 
-                        </div>
+                      <span className="audit-category">
+                        {log.category}
+                      </span>
+
+                    </td>
+
+                    <td>
+
+                      <div className="audit-user-cell">
+
+                        <User size={12} />
+
+                        <span>
+                          {log.user}
+                        </span>
 
                       </div>
 
-                    </Link>
+                    </td>
 
-                  </td>
+                    <td className="audit-mono">
+                      {log.endpoint}
+                    </td>
 
-                  <td>
+                    <td className="audit-mono">
+                      {log.sourceIp}
+                    </td>
 
-                    <span className="audit-category">
-                      {log.category}
-                    </span>
+                    <td className="audit-mono">
+                      {log.timestamp}
+                    </td>
 
-                  </td>
+                    <td>
 
-                  <td>
+                      <span
+                        className={`audit-severity audit-severity-${log.severity.toLowerCase()}`}
+                      >
 
-                    <div className="audit-user-cell">
+                        <span />
 
-                      <User size={12} />
+                        {log.severity}
 
-                      <span>
-                        {log.user}
                       </span>
 
-                    </div>
+                    </td>
 
-                  </td>
+                    <td>
 
-                  <td className="audit-mono">
-                    {log.endpoint}
-                  </td>
+                      <span
+                        className={`audit-event-status audit-event-status-${log.status.toLowerCase()}`}
+                      >
 
-                  <td className="audit-mono">
-                    {log.sourceIp}
-                  </td>
+                        <span />
 
-                  <td className="audit-mono">
-                    {log.timestamp}
-                  </td>
+                        {log.status}
 
-                  <td>
+                      </span>
 
-                    <span
-                      className={`audit-severity audit-severity-${log.severity.toLowerCase()}`}
-                    >
-                      <span />
-                      {log.severity}
-                    </span>
+                    </td>
 
-                  </td>
+                  </tr>
 
-                  <td>
+                ))}
 
-                    <span
-                      className={`audit-event-status audit-event-status-${log.status.toLowerCase()}`}
-                    >
-                      <span />
-                      {log.status}
-                    </span>
+              </tbody>
 
-                  </td>
+            </table>
 
-                </tr>
+          )}
 
-              ))}
+          {!loading && filteredLogs.length === 0 && (
 
-            </tbody>
-
-          </table>
-
-          {filteredLogs.length === 0 && (
             <div className="audit-empty-state">
 
               <Search size={22} />
@@ -865,6 +995,7 @@ function AuditLogs() {
               </span>
 
             </div>
+
           )}
 
         </div>

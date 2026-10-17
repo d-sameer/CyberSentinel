@@ -107,7 +107,7 @@ export default function SecurityPlaybookDetails() {
 
     try {
       const response = await fetch(
-        `http://127.0.0.1:8000/api/playbooks/${encodeURIComponent(
+        `http://127.0.0.1:8001/api/playbooks/${encodeURIComponent(
           playbookId,
         )}/executions`,
       )
@@ -144,7 +144,7 @@ export default function SecurityPlaybookDetails() {
         setError('')
 
         const response = await fetch(
-          `http://127.0.0.1:8000/api/playbooks/${encodeURIComponent(
+          `http://127.0.0.1:8001/api/playbooks/${encodeURIComponent(
             playbookId,
           )}`,
         )
@@ -228,7 +228,7 @@ export default function SecurityPlaybookDetails() {
       setExecutionSuccess(null)
 
       const response = await fetch(
-        `http://127.0.0.1:8000/api/playbooks/${encodeURIComponent(
+        `http://127.0.0.1:8001/api/playbooks/${encodeURIComponent(
           playbookId,
         )}/executions`,
         {

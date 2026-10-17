@@ -416,7 +416,7 @@ export default function ThreatIntelligenceDetails() {
 
       try {
         const response = await fetch(
-          `http://127.0.0.1:8000/api/threat-intelligence/${indicatorId}`,
+          `http://127.0.0.1:8001/api/threat-intelligence/${indicatorId}`,
         )
 
         if (!response.ok) {

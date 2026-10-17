@@ -1,5 +1,3 @@
-from datetime import datetime
-
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -10,17 +8,27 @@ from app.routes.incidents import Incident
 from app.routes.incident_actions import IncidentAction
 from app.routes.response_actions import SOCEventAction
 
+
 router = APIRouter(
     prefix="/api/incidents",
     tags=["Incident Investigation"],
 )
 
 
-def _parse_ids(value: str) -> list[str]:
-    return [item.strip() for item in value.split(",") if item.strip()]
+def _parse_ids(value: str | None) -> list[str]:
+    if not value:
+        return []
+
+    return [
+        item.strip()
+        for item in value.split(",")
+        if item.strip()
+    ]
 
 
-def _event_timeline_item(event: SecurityEvent) -> dict:
+def _event_timeline_item(
+    event: SecurityEvent,
+) -> dict:
     return {
         "time": event.timestamp,
         "title": event.title,
@@ -31,13 +39,19 @@ def _event_timeline_item(event: SecurityEvent) -> dict:
     }
 
 
-def _event_action_timeline_item(action: SOCEventAction) -> dict:
+def _event_action_timeline_item(
+    action: SOCEventAction,
+) -> dict:
     return {
         "time": action.created_at,
-        "title": f"Event response: {action.action.replace('_', ' ')}",
+        "title": (
+            "Event response: "
+            f"{action.action.replace('_', ' ')}"
+        ),
         "description": (
-            f"Response action recorded for {action.event_id} "
-            f"with status {action.status.replace('_', ' ')}."
+            f"Response action recorded for "
+            f"{action.event_id} with status "
+            f"{action.status.replace('_', ' ')}."
         ),
         "actor": action.analyst,
         "source": "EVENT_ACTION",
@@ -45,13 +59,18 @@ def _event_action_timeline_item(action: SOCEventAction) -> dict:
     }
 
 
-def _incident_action_timeline_item(action: IncidentAction) -> dict:
+def _incident_action_timeline_item(
+    action: IncidentAction,
+) -> dict:
     return {
         "time": action.created_at,
-        "title": f"Incident response: {action.action.replace('_', ' ')}",
+        "title": (
+            "Incident response: "
+            f"{action.action.replace('_', ' ')}"
+        ),
         "description": (
-            f"Incident response action recorded with status "
-            f"{action.status.replace('_', ' ')}."
+            "Incident response action recorded "
+            f"with status {action.status.replace('_', ' ')}."
         ),
         "actor": action.analyst,
         "source": "INCIDENT_ACTION",
@@ -59,7 +78,9 @@ def _incident_action_timeline_item(action: IncidentAction) -> dict:
     }
 
 
-def _incident_created_timeline_item(incident: Incident) -> dict:
+def _incident_created_timeline_item(
+    incident: Incident,
+) -> dict:
     return {
         "time": incident.created_at,
         "title": "Incident created",
@@ -76,7 +97,9 @@ def read_incident_investigation(
     db: Session = Depends(get_db),
 ):
     incident = db.scalar(
-        select(Incident).where(Incident.incident_id == incident_id)
+        select(Incident).where(
+            Incident.incident_id == incident_id
+        )
     )
 
     if incident is None:
@@ -85,15 +108,28 @@ def read_incident_investigation(
             detail="Incident not found",
         )
 
-    event_ids = _parse_ids(incident.related_event_ids)
-    alert_ids = _parse_ids(incident.related_alert_ids)
+    event_ids = _parse_ids(
+        incident.related_event_ids
+    )
 
-    events = []
+    alert_ids = _parse_ids(
+        incident.related_alert_ids
+    )
+
+    # -----------------------------------------
+    # Related security events
+    # -----------------------------------------
+
+    events: list[SecurityEvent] = []
+
     if event_ids:
         statement = select(SecurityEvent).where(
             SecurityEvent.event_id.in_(event_ids)
         )
-        event_records = db.scalars(statement).all()
+
+        event_records = db.scalars(
+            statement
+        ).all()
 
         event_by_id = {
             event.event_id: event
@@ -102,28 +138,61 @@ def read_incident_investigation(
 
         for event_id in event_ids:
             event = event_by_id.get(event_id)
+
             if event is not None:
                 events.append(event)
 
-    event_actions = []
+    # -----------------------------------------
+    # Event response actions
+    # -----------------------------------------
+
+    event_actions: list[SOCEventAction] = []
+
     if event_ids:
         statement = (
             select(SOCEventAction)
-            .where(SOCEventAction.event_id.in_(event_ids))
-            .order_by(SOCEventAction.created_at.desc())
+            .where(
+                SOCEventAction.event_id.in_(event_ids)
+            )
+            .order_by(
+                SOCEventAction.created_at.desc()
+            )
         )
-        event_actions = db.scalars(statement).all()
+
+        event_actions = db.scalars(
+            statement
+        ).all()
+
+    # -----------------------------------------
+    # Incident response actions
+    # -----------------------------------------
 
     statement = (
         select(IncidentAction)
-        .where(IncidentAction.incident_id == incident_id)
-        .order_by(IncidentAction.created_at.desc())
+        .where(
+            IncidentAction.incident_id == incident_id
+        )
+        .order_by(
+            IncidentAction.created_at.desc()
+        )
     )
-    incident_actions = db.scalars(statement).all()
+
+    incident_actions = db.scalars(
+        statement
+    ).all()
+
+    # -----------------------------------------
+    # Unified timeline
+    # -----------------------------------------
 
     timeline = [
-        _incident_created_timeline_item(incident),
-        *[_event_timeline_item(event) for event in events],
+        _incident_created_timeline_item(
+            incident
+        ),
+        *[
+            _event_timeline_item(event)
+            for event in events
+        ],
         *[
             _event_action_timeline_item(action)
             for action in event_actions
@@ -138,6 +207,10 @@ def read_incident_investigation(
         key=lambda item: item["time"],
         reverse=True,
     )
+
+    # -----------------------------------------
+    # Response
+    # -----------------------------------------
 
     return {
         "incident": {
@@ -154,6 +227,7 @@ def read_incident_investigation(
             "created_at": incident.created_at,
             "updated_at": incident.updated_at,
         },
+
         "events": [
             {
                 "event_id": event.event_id,
@@ -171,7 +245,9 @@ def read_incident_investigation(
             }
             for event in events
         ],
+
         "alerts": alert_ids,
+
         "event_actions": [
             {
                 "action_id": action.action_id,
@@ -183,6 +259,7 @@ def read_incident_investigation(
             }
             for action in event_actions
         ],
+
         "incident_actions": [
             {
                 "id": action.id,
@@ -195,5 +272,6 @@ def read_incident_investigation(
             }
             for action in incident_actions
         ],
+
         "timeline": timeline,
-    }
+    }   

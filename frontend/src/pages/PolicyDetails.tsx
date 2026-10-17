@@ -174,7 +174,7 @@ function PolicyDetails() {
 
     try {
       const response = await fetch(
-        `http://127.0.0.1:8000/api/policies/${policyId}`
+        `http://127.0.0.1:8001/api/policies/${policyId}`
       )
 
       if (!response.ok) {
@@ -200,7 +200,7 @@ function PolicyDetails() {
       setActionsLoading(true)
 
       const response = await fetch(
-        `http://127.0.0.1:8000/api/policies/${policyId}/actions`
+        `http://127.0.0.1:8001/api/policies/${policyId}/actions`
       )
 
       if (!response.ok) {
@@ -248,7 +248,7 @@ function PolicyDetails() {
 
     try {
       const response = await fetch(
-        `http://127.0.0.1:8000/api/policies/${policyId}/actions`,
+        `http://127.0.0.1:8001/api/policies/${policyId}/actions`,
         {
           method: 'POST',
           headers: {

@@ -63,7 +63,7 @@ type SecurityChangesResponse = {
   changes: SecurityChange[]
 }
 
-const API_URL = 'http://127.0.0.1:8000/api/security-changes'
+const API_URL = 'http://127.0.0.1:8001/api/security-changes'
 
 function statusClass(status: string) {
   const value = status.toUpperCase()

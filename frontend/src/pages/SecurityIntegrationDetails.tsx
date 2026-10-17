@@ -210,7 +210,7 @@ export default function SecurityIntegrationDetails() {
       setError('')
 
       const response = await fetch(
-        `http://127.0.0.1:8000/api/integrations/${integrationId}`,
+        `http://127.0.0.1:8001/api/integrations/${integrationId}`,
       )
 
       if (!response.ok) {
@@ -242,7 +242,7 @@ export default function SecurityIntegrationDetails() {
       setActionsLoading(true)
 
       const response = await fetch(
-        `http://127.0.0.1:8000/api/integrations/${integrationId}/actions`,
+        `http://127.0.0.1:8001/api/integrations/${integrationId}/actions`,
       )
 
       if (!response.ok) {
@@ -283,7 +283,7 @@ export default function SecurityIntegrationDetails() {
 
     try {
       const response = await fetch(
-        `http://127.0.0.1:8000/api/integrations/${integrationId}/actions?action=${encodeURIComponent(action)}`,
+        `http://127.0.0.1:8001/api/integrations/${integrationId}/actions?action=${encodeURIComponent(action)}`,
         {
           method: 'POST',
           headers: {

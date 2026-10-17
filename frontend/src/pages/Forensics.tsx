@@ -12,8 +12,11 @@ import {
   Terminal,
   User,
 } from 'lucide-react'
-import { useMemo, useState } from 'react'
+
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
+
+const API_URL = 'http://127.0.0.1:8001/api/forensics'
 
 type EvidenceStatus =
   | 'COLLECTED'
@@ -40,110 +43,115 @@ type EvidenceItem = {
   description: string
 }
 
-const evidenceItems: EvidenceItem[] = [
-  {
-    id: 'EVD-001',
-    name: 'powershell.exe execution trace',
-    type: 'PROCESS',
-    endpoint: 'WIN-01',
-    collected: 'Today, 10:06:14',
-    analyst: 'SOC Analyst',
-    status: 'FLAGGED',
-    source: 'Process Telemetry',
-    description:
-      'Execution trace associated with an ExecutionPolicy Bypass command.',
-  },
-  {
-    id: 'EVD-002',
-    name: 'update.ps1 file artifact',
-    type: 'FILE',
-    endpoint: 'WIN-01',
-    collected: 'Today, 10:06:28',
-    analyst: 'SOC Analyst',
-    status: 'ANALYZING',
-    source: 'File Integrity',
-    description:
-      'PowerShell script whose integrity baseline changed after execution.',
-  },
-  {
-    id: 'EVD-003',
-    name: 'Outbound HTTPS connection',
-    type: 'NETWORK',
-    endpoint: 'WIN-01',
-    collected: 'Today, 10:06:42',
-    analyst: 'SOC Analyst',
-    status: 'FLAGGED',
-    source: 'Network Telemetry',
-    description:
-      'Outbound connection associated with suspicious process activity.',
-  },
-  {
-    id: 'EVD-004',
-    name: 'unknown_update.exe execution',
-    type: 'PROCESS',
-    endpoint: 'WIN-02',
-    collected: 'Today, 10:25:11',
-    analyst: 'SOC Analyst',
-    status: 'FLAGGED',
-    source: 'Process Telemetry',
-    description:
-      'Unsigned executable launched from a temporary directory.',
-  },
-  {
-    id: 'EVD-005',
-    name: 'payload.bin creation',
-    type: 'FILE',
-    endpoint: 'WIN-02',
-    collected: 'Today, 10:25:23',
-    analyst: 'SOC Analyst',
-    status: 'ANALYZING',
-    source: 'File Integrity',
-    description:
-      'New binary created shortly after suspicious process execution.',
-  },
-  {
-    id: 'EVD-006',
-    name: 'SSH authorization change',
-    type: 'USER ACTIVITY',
-    endpoint: 'LINUX-01',
-    collected: 'Today, 09:59:03',
-    analyst: 'SOC Analyst',
-    status: 'VERIFIED',
-    source: 'Authentication Logs',
-    description:
-      'Change to the authorized_keys file associated with an SSH session.',
-  },
-  {
-    id: 'EVD-007',
-    name: 'Windows security rules deletion',
-    type: 'SYSTEM',
-    endpoint: 'WIN-02',
-    collected: 'Today, 10:26:39',
-    analyst: 'SOC Analyst',
-    status: 'FLAGGED',
-    source: 'File Integrity',
-    description:
-      'Protected security rules file was deleted from the endpoint.',
-  },
-  {
-    id: 'EVD-008',
-    name: 'Endpoint authentication events',
-    type: 'USER ACTIVITY',
-    endpoint: 'WIN-02',
-    collected: 'Today, 10:27:12',
-    analyst: 'SOC Analyst',
-    status: 'COLLECTED',
-    source: 'Windows Event Logs',
-    description:
-      'Authentication activity collected for timeline correlation.',
-  },
-]
+type ApiEvidenceItem = Record<string, unknown>
+
+function readString(
+  item: ApiEvidenceItem,
+  ...keys: string[]
+): string {
+  for (const key of keys) {
+    const value = item[key]
+    if (value !== undefined && value !== null && String(value).trim()) {
+      return String(value).trim()
+    }
+  }
+  return ''
+}
+
+function normalizeStatus(value: string): EvidenceStatus {
+  const status = value.trim().toUpperCase().replace(/[ -]+/g, '_')
+  if (status === 'ANALYSIS' || status === 'IN_PROGRESS' || status === 'UNDER_ANALYSIS') {
+    return 'ANALYZING'
+  }
+  if (status === 'ALERT' || status === 'SUSPICIOUS' || status === 'REQUIRES_REVIEW') {
+    return 'FLAGGED'
+  }
+  if (status === 'VERIFIED' || status === 'COLLECTED' || status === 'ANALYZING' || status === 'FLAGGED') {
+    return status
+  }
+  return 'COLLECTED'
+}
+
+function normalizeType(value: string): EvidenceType {
+  const type = value.trim().toUpperCase().replace(/[_-]+/g, ' ')
+  if (type.includes('PROCESS')) return 'PROCESS'
+  if (type.includes('FILE')) return 'FILE'
+  if (type.includes('NETWORK') || type.includes('CONNECTION')) return 'NETWORK'
+  if (type.includes('USER') || type.includes('AUTHENTICATION') || type.includes('ACCOUNT')) return 'USER ACTIVITY'
+  return 'SYSTEM'
+}
+
+function normalizeEvidence(item: ApiEvidenceItem, index: number): EvidenceItem {
+  const name = readString(item, 'name', 'evidence_name', 'title', 'artifact_name') || `Evidence item ${index + 1}`
+  const endpoint = readString(item, 'endpoint', 'endpoint_name', 'host', 'hostname', 'device') || 'Unknown endpoint'
+  const id = readString(item, 'evidence_id', 'evidenceId', 'id', 'uuid', 'artifact_id') || `${name}-${endpoint}-${index}`
+  return {
+    id,
+    name,
+    type: normalizeType(readString(item, 'evidence_type', 'evidenceType', 'type', 'category')),
+    endpoint,
+    collected: readString(item, 'collected', 'collected_at', 'collectedAt', 'collection_time', 'timestamp', 'created_at') || '—',
+    analyst: readString(item, 'analyst', 'analyst_name', 'owner', 'collected_by') || 'Unassigned',
+    status: normalizeStatus(readString(item, 'status', 'evidence_status', 'evidenceStatus', 'state')),
+    source: readString(item, 'source', 'source_name', 'origin', 'artifact_source') || 'Unknown source',
+    description: readString(item, 'description', 'summary', 'details', 'notes') || 'No description available.',
+  }
+}
 
 function Forensics() {
+  const [evidenceItems, setEvidenceItems] = useState<EvidenceItem[]>([])
   const [search, setSearch] = useState('')
+
   const [statusFilter, setStatusFilter] = useState<
     'ALL' | EvidenceStatus
   >('ALL')
+
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+
+  const loadEvidence = async () => {
+    try {
+      setLoading(true)
+      setError('')
+
+      const response = await fetch(API_URL)
+
+      if (!response.ok) {
+        throw new Error('Failed to load forensic evidence')
+      }
+
+      const payload: unknown = await response.json()
+      const records = Array.isArray(payload)
+        ? payload
+        : payload && typeof payload === 'object'
+          ? (() => {
+              const record = payload as Record<string, unknown>
+              const nested = record.items ?? record.evidence ?? record.results ?? record.data
+              return Array.isArray(nested) ? nested : []
+            })()
+          : []
+
+      const mappedEvidence = records
+        .filter((item): item is ApiEvidenceItem => Boolean(item) && typeof item === 'object' && !Array.isArray(item))
+        .map((item, index) => normalizeEvidence(item, index))
+
+      setEvidenceItems(mappedEvidence)
+    } catch (err) {
+      console.error('Forensics API error:', err)
+
+      setError(
+        'Unable to connect to the forensic evidence service.',
+      )
+
+      setEvidenceItems([])
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    loadEvidence()
+  }, [])
 
   const collectedCount = evidenceItems.filter(
     (item) => item.status === 'COLLECTED',
@@ -156,6 +164,31 @@ function Forensics() {
   const flaggedCount = evidenceItems.filter(
     (item) => item.status === 'FLAGGED',
   ).length
+
+  const categoryCounts = useMemo(
+    () => ({
+      process: evidenceItems.filter(
+        (item) => item.type === 'PROCESS',
+      ).length,
+
+      file: evidenceItems.filter(
+        (item) => item.type === 'FILE',
+      ).length,
+
+      network: evidenceItems.filter(
+        (item) => item.type === 'NETWORK',
+      ).length,
+
+      userActivity: evidenceItems.filter(
+        (item) => item.type === 'USER ACTIVITY',
+      ).length,
+
+      system: evidenceItems.filter(
+        (item) => item.type === 'SYSTEM',
+      ).length,
+    }),
+    [evidenceItems],
+  )
 
   const filteredEvidence = useMemo(() => {
     const query = search.toLowerCase().trim()
@@ -176,7 +209,7 @@ function Forensics() {
 
       return matchesSearch && matchesStatus
     })
-  }, [search, statusFilter])
+  }, [evidenceItems, search, statusFilter])
 
   return (
     <div className="page-container">
@@ -202,10 +235,49 @@ function Forensics() {
 
         <div className="page-status page-forensics-status">
           <span />
-          FORENSIC COLLECTION ACTIVE
+
+          {loading
+            ? 'CONNECTING TO FORENSIC SERVICE'
+            : error
+              ? 'FORENSIC SERVICE OFFLINE'
+              : 'FORENSIC COLLECTION ACTIVE'}
         </div>
 
       </div>
+
+      {/* =========================================
+          ERROR / RETRY
+          ========================================= */}
+
+      {error && (
+        <div className="forensics-error">
+          <AlertTriangle size={16} />
+
+          <span>{error}</span>
+
+          <button
+            type="button"
+            onClick={loadEvidence}
+            className="forensics-refresh-button"
+          >
+            Retry
+          </button>
+        </div>
+      )}
+
+      {/* =========================================
+          LOADING
+          ========================================= */}
+
+      {loading && (
+        <div className="forensics-loading">
+          <Activity size={18} />
+
+          <span>
+            Loading forensic evidence from backend...
+          </span>
+        </div>
+      )}
 
       {/* =========================================
           EVIDENCE SUMMARY
@@ -289,11 +361,14 @@ function Forensics() {
 
       <section className="forensics-overview-grid">
 
+        {/* Timeline */}
+
         <div className="forensics-panel">
 
           <div className="forensics-panel-header">
 
             <div>
+
               <div className="forensics-panel-title">
                 Investigation Timeline
               </div>
@@ -302,6 +377,7 @@ function Forensics() {
                 Evidence activity correlated across the current
                 investigation window
               </div>
+
             </div>
 
             <CalendarClock size={18} />
@@ -319,13 +395,17 @@ function Forensics() {
 
             <div className="forensics-timeline-line">
 
-              <div className="forensics-event-dot" />
-              <div className="forensics-event-dot" />
-              <div className="forensics-event-dot" />
-              <div className="forensics-event-dot" />
-              <div className="forensics-event-dot" />
-              <div className="forensics-event-dot" />
-              <div className="forensics-event-dot" />
+              {Array.from({
+                length: Math.max(
+                  evidenceItems.length,
+                  1,
+                ),
+              }).map((_, index) => (
+                <div
+                  className="forensics-event-dot"
+                  key={index}
+                />
+              ))}
 
             </div>
 
@@ -340,11 +420,14 @@ function Forensics() {
 
         </div>
 
+        {/* Categories */}
+
         <div className="forensics-panel">
 
           <div className="forensics-panel-header">
 
             <div>
+
               <div className="forensics-panel-title">
                 Evidence Categories
               </div>
@@ -352,6 +435,7 @@ function Forensics() {
               <div className="forensics-panel-subtitle">
                 Distribution of collected forensic artifacts
               </div>
+
             </div>
 
             <FolderSearch size={18} />
@@ -368,7 +452,9 @@ function Forensics() {
 
               <div className="forensics-category-content">
 
-                <strong>Process Evidence</strong>
+                <strong>
+                  Process Evidence
+                </strong>
 
                 <span>
                   Execution and parent-child relationships
@@ -376,7 +462,9 @@ function Forensics() {
 
               </div>
 
-              <b>02</b>
+              <b>
+                {String(categoryCounts.process).padStart(2, '0')}
+              </b>
 
             </div>
 
@@ -388,7 +476,9 @@ function Forensics() {
 
               <div className="forensics-category-content">
 
-                <strong>File Evidence</strong>
+                <strong>
+                  File Evidence
+                </strong>
 
                 <span>
                   File changes and integrity artifacts
@@ -396,7 +486,9 @@ function Forensics() {
 
               </div>
 
-              <b>02</b>
+              <b>
+                {String(categoryCounts.file).padStart(2, '0')}
+              </b>
 
             </div>
 
@@ -408,7 +500,9 @@ function Forensics() {
 
               <div className="forensics-category-content">
 
-                <strong>Network Evidence</strong>
+                <strong>
+                  Network Evidence
+                </strong>
 
                 <span>
                   Connections and communication artifacts
@@ -416,7 +510,9 @@ function Forensics() {
 
               </div>
 
-              <b>01</b>
+              <b>
+                {String(categoryCounts.network).padStart(2, '0')}
+              </b>
 
             </div>
 
@@ -428,7 +524,9 @@ function Forensics() {
 
               <div className="forensics-category-content">
 
-                <strong>User Activity</strong>
+                <strong>
+                  User Activity
+                </strong>
 
                 <span>
                   Authentication and account activity
@@ -436,7 +534,9 @@ function Forensics() {
 
               </div>
 
-              <b>02</b>
+              <b>
+                {String(categoryCounts.userActivity).padStart(2, '0')}
+              </b>
 
             </div>
 
@@ -448,7 +548,9 @@ function Forensics() {
 
               <div className="forensics-category-content">
 
-                <strong>System Evidence</strong>
+                <strong>
+                  System Evidence
+                </strong>
 
                 <span>
                   OS and security configuration artifacts
@@ -456,7 +558,9 @@ function Forensics() {
 
               </div>
 
-              <b>01</b>
+              <b>
+                {String(categoryCounts.system).padStart(2, '0')}
+              </b>
 
             </div>
 
@@ -530,7 +634,10 @@ function Forensics() {
 
             <div>
               <strong>Network Telemetry</strong>
-              <span>5 active connection records</span>
+
+              <span>
+                {categoryCounts.network} active evidence records
+              </span>
             </div>
 
             <b>ACTIVE</b>
@@ -597,7 +704,9 @@ function Forensics() {
                   ? 'forensics-filter-button forensics-filter-active'
                   : 'forensics-filter-button'
               }
-              onClick={() => setStatusFilter(status)}
+              onClick={() =>
+                setStatusFilter(status)
+              }
             >
               {status}
             </button>
@@ -656,41 +765,41 @@ function Forensics() {
             <tbody>
 
               {filteredEvidence.map((item) => (
-                
+
                 <tr
-                key={item.id}
-                className="forensics-clickable-row"
+                  key={item.id}
+                  className="forensics-clickable-row"
                 >
 
                   <td>
-                    
+
                     <Link
-                    to={`/forensics/${item.id}`}
-                    className="forensics-evidence-link"
+                      to={`/forensics/${encodeURIComponent(item.id)}`}
+                      className="forensics-evidence-link"
                     >
-                      
+
                       <div className="forensics-evidence-cell">
-                        
+
                         <div className="forensics-evidence-icon">
                           <FileSearch size={14} />
                         </div>
-                        
+
                         <div>
-                          
+
                           <strong>
                             {item.name}
                           </strong>
-                          
+
                           <span>
                             {item.id}
                           </span>
 
                         </div>
-                        
+
                       </div>
-                      
+
                     </Link>
-                    
+
                   </td>
 
                   <td>
@@ -730,8 +839,11 @@ function Forensics() {
                     <span
                       className={`forensics-status forensics-status-${item.status.toLowerCase()}`}
                     >
+
                       <span />
+
                       {item.status}
+
                     </span>
 
                   </td>
@@ -744,7 +856,8 @@ function Forensics() {
 
           </table>
 
-          {filteredEvidence.length === 0 && (
+          {!loading && filteredEvidence.length === 0 && (
+
             <div className="forensics-empty-state">
 
               <Search size={22} />
@@ -754,10 +867,13 @@ function Forensics() {
               </strong>
 
               <span>
-                Try changing the search or status filter.
+                {error
+                  ? 'Check the backend service and try again.'
+                  : 'Try changing the search or status filter.'}
               </span>
 
             </div>
+
           )}
 
         </div>

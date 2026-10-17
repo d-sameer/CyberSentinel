@@ -46,7 +46,7 @@ type Asset = {
   updated_at: string
 }
 
-const API_BASE = 'http://127.0.0.1:8000'
+const API_BASE = 'http://127.0.0.1:8001'
 
 const formatDateTime = (value: string) => {
   if (!value) return '—'

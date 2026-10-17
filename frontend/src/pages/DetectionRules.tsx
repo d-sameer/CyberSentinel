@@ -196,7 +196,43 @@ const fallbackRules: DetectionRule[] = [
   },
 ]
 
-const API_BASE = 'http://127.0.0.1:8000'
+const API_BASE = 'http://127.0.0.1:8001'
+
+function normalizeRule(value: unknown): DetectionRule {
+  const raw = (value && typeof value === 'object' ? value : {}) as Record<string, unknown>
+  const text = (camel: string, snake: string, fallback = ''): string => {
+    const value = raw[camel] ?? raw[snake]
+    return value == null ? fallback : String(value)
+  }
+  const number = (camel: string, snake: string): number => {
+    const value = Number(raw[camel] ?? raw[snake] ?? 0)
+    return Number.isFinite(value) ? value : 0
+  }
+  const list = (camel: string, snake: string): string[] => {
+    const value = raw[camel] ?? raw[snake]
+    if (!Array.isArray(value)) return []
+    return value.map((item) => String(item)).filter(Boolean)
+  }
+  const severityValue = text('severity', 'severity', 'INFO').toUpperCase()
+  const statusValue = text('status', 'status', 'ENABLED').toUpperCase()
+
+  return {
+    id: text('id', 'rule_id', 'UNKNOWN'),
+    name: text('name', 'rule_name', 'Unnamed detection rule'),
+    description: text('description', 'description', 'No description provided.'),
+    category: text('category', 'category', 'UNCATEGORIZED').toUpperCase(),
+    severity: (['INFO', 'WARNING', 'HIGH'].includes(severityValue) ? severityValue : 'INFO') as RuleSeverity,
+    status: (['ENABLED', 'DISABLED'].includes(statusValue) ? statusValue : 'ENABLED') as RuleStatus,
+    technique: text('technique', 'technique', text('techniqueId', 'technique_id', 'N/A')),
+    techniqueName: text('techniqueName', 'technique_name', 'Unmapped technique'),
+    triggerCount: number('triggerCount', 'trigger_count'),
+    lastTriggered: text('lastTriggered', 'last_triggered', 'Never'),
+    source: text('source', 'source', 'Unknown source'),
+    event_ids: list('event_ids', 'event_ids').length ? list('event_ids', 'event_ids') : list('eventIds', 'event_ids'),
+    alert_ids: list('alert_ids', 'alert_ids').length ? list('alert_ids', 'alert_ids') : list('alertIds', 'alert_ids'),
+    incident_ids: list('incident_ids', 'incident_ids').length ? list('incident_ids', 'incident_ids') : list('incidentIds', 'incident_ids'),
+  }
+}
 
 function DetectionRules() {
   const [rules, setRules] = useState<DetectionRule[]>(fallbackRules)
@@ -217,8 +253,20 @@ function DetectionRules() {
         throw new Error('Failed to fetch detection rules')
       }
 
-      const data: DetectionRule[] = await response.json()
-      setRules(data)
+      const payload: unknown = await response.json()
+      const rawRules = Array.isArray(payload)
+        ? payload
+        : payload && typeof payload === 'object'
+          ? ((payload as Record<string, unknown>).rules ??
+              (payload as Record<string, unknown>).items ??
+              (payload as Record<string, unknown>).data ?? [])
+          : []
+
+      if (!Array.isArray(rawRules)) {
+        throw new Error('Unexpected detection rules response')
+      }
+
+      setRules(rawRules.map(normalizeRule))
       setApiOnline(true)
     } catch {
       setRules(fallbackRules)

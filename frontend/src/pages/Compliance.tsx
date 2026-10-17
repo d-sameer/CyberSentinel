@@ -55,7 +55,7 @@ type ComplianceResponse = {
   controls: ComplianceControl[]
 }
 
-const API_URL = 'http://127.0.0.1:8000/api/compliance'
+const API_URL = 'http://127.0.0.1:8001/api/compliance'
 
 function statusStyle(status: string) {
   switch (status.toUpperCase()) {

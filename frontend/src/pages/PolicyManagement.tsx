@@ -48,7 +48,7 @@ function PolicyManagement() {
         setError('')
 
         const response = await fetch(
-          'http://127.0.0.1:8000/api/policies'
+          'http://127.0.0.1:8001/api/policies'
         )
 
         if (!response.ok) {

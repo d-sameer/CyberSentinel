@@ -10,14 +10,18 @@ import {
   ShieldAlert,
   User,
 } from 'lucide-react'
+
 import { useEffect, useState } from 'react'
+
 import { Link, useParams } from 'react-router-dom'
+
 
 type FileStatus =
   | 'CLEAN'
   | 'MODIFIED'
   | 'CREATED'
   | 'DELETED'
+
 
 type FileDetailsData = {
   id: string
@@ -38,166 +42,6 @@ type FileDetailsData = {
   networkActivity: string
 }
 
-const fileDetails: Record<string, FileDetailsData> = {
-  'FILE-001': {
-    id: 'FILE-001',
-    fileName: 'hosts',
-    path: 'C:\\Windows\\System32\\drivers\\etc\\hosts',
-    endpoint: 'WIN-01',
-    user: 'SYSTEM',
-    process: 'svchost.exe',
-    status: 'CLEAN',
-    hashBefore: '7f3a...91bc',
-    hashAfter: '7f3a...91bc',
-    lastModified: 'Today, 08:42:12',
-    size: '1.2 KB',
-    fileType: 'System configuration',
-    permissions: 'SYSTEM / Administrator',
-    signer: 'Microsoft Windows',
-    detection: 'No integrity deviation detected.',
-    networkActivity: 'No related network activity',
-  },
-
-  'FILE-002': {
-    id: 'FILE-002',
-    fileName: 'update.ps1',
-    path: 'C:\\Users\\Sameer\\Downloads\\update.ps1',
-    endpoint: 'WIN-01',
-    user: 'Sameer',
-    process: 'powershell.exe',
-    status: 'MODIFIED',
-    hashBefore: '81c4...2fa1',
-    hashAfter: 'd92a...71e4',
-    lastModified: 'Today, 10:04:29',
-    size: '8.4 KB',
-    fileType: 'PowerShell Script',
-    permissions: 'User',
-    signer: 'Unsigned',
-    detection:
-      'File hash changed shortly after PowerShell execution with ExecutionPolicy Bypass.',
-    networkActivity: 'Related outbound HTTPS activity observed',
-  },
-
-  'FILE-003': {
-    id: 'FILE-003',
-    fileName: 'config.json',
-    path: 'C:\\ProgramData\\CyberSentinel\\config.json',
-    endpoint: 'WIN-02',
-    user: 'SYSTEM',
-    process: 'unknown_update.exe',
-    status: 'MODIFIED',
-    hashBefore: '12ab...9d20',
-    hashAfter: '83fe...4c11',
-    lastModified: 'Today, 10:24:03',
-    size: '4.8 KB',
-    fileType: 'JSON Configuration',
-    permissions: 'SYSTEM',
-    signer: 'Unsigned',
-    detection:
-      'Configuration file modified by a high-risk executable.',
-    networkActivity: 'Outbound connection associated with modifying process',
-  },
-
-  'FILE-004': {
-    id: 'FILE-004',
-    fileName: 'payload.bin',
-    path: 'C:\\Users\\Sameer\\AppData\\Local\\Temp\\payload.bin',
-    endpoint: 'WIN-02',
-    user: 'Sameer',
-    process: 'unknown_update.exe',
-    status: 'CREATED',
-    hashBefore: '-',
-    hashAfter: 'a91e...5f02',
-    lastModified: 'Today, 10:24:09',
-    size: '182 KB',
-    fileType: 'Binary',
-    permissions: 'User',
-    signer: 'Unsigned',
-    detection:
-      'New binary created in a temporary directory by a high-risk process.',
-    networkActivity: 'Network activity observed after file creation',
-  },
-
-  'FILE-005': {
-    id: 'FILE-005',
-    fileName: 'sshd_config',
-    path: '/etc/ssh/sshd_config',
-    endpoint: 'LINUX-01',
-    user: 'root',
-    process: 'sshd',
-    status: 'CLEAN',
-    hashBefore: 'a72c...44e1',
-    hashAfter: 'a72c...44e1',
-    lastModified: 'Today, 08:43:17',
-    size: '3.1 KB',
-    fileType: 'SSH Configuration',
-    permissions: 'root',
-    signer: 'Ubuntu System Package',
-    detection: 'Expected baseline configuration.',
-    networkActivity: 'Normal SSH service activity',
-  },
-
-  'FILE-006': {
-    id: 'FILE-006',
-    fileName: 'authorized_keys',
-    path: '/home/admin/.ssh/authorized_keys',
-    endpoint: 'LINUX-01',
-    user: 'admin',
-    process: 'sshd',
-    status: 'MODIFIED',
-    hashBefore: '3ab1...a918',
-    hashAfter: '8fe4...c220',
-    lastModified: 'Today, 09:58:42',
-    size: '1.7 KB',
-    fileType: 'SSH Authorization File',
-    permissions: 'admin',
-    signer: 'N/A',
-    detection:
-      'SSH authorization file changed and requires administrator review.',
-    networkActivity: 'Related SSH session activity detected',
-  },
-
-  'FILE-007': {
-    id: 'FILE-007',
-    fileName: 'startup.cmd',
-    path: 'C:\\Users\\Public\\startup.cmd',
-    endpoint: 'DEV-01',
-    user: 'Sameer',
-    process: 'cmd.exe',
-    status: 'CREATED',
-    hashBefore: '-',
-    hashAfter: 'c812...b991',
-    lastModified: 'Today, 10:17:31',
-    size: '2.2 KB',
-    fileType: 'Windows Command Script',
-    permissions: 'User',
-    signer: 'Unsigned',
-    detection:
-      'New command script created in a shared public directory.',
-    networkActivity: 'No related network activity detected',
-  },
-
-  'FILE-008': {
-    id: 'FILE-008',
-    fileName: 'temp_rules.xml',
-    path: 'C:\\ProgramData\\Security\\temp_rules.xml',
-    endpoint: 'WIN-02',
-    user: 'SYSTEM',
-    process: 'services.exe',
-    status: 'DELETED',
-    hashBefore: 'c901...21fa',
-    hashAfter: '-',
-    lastModified: 'Today, 10:26:15',
-    size: '12.6 KB',
-    fileType: 'Security Rules',
-    permissions: 'SYSTEM',
-    signer: 'Microsoft Windows',
-    detection:
-      'Protected security rules file was deleted.',
-    networkActivity: 'No related network activity detected',
-  },
-}
-
 
 type FileAction = {
   id: number
@@ -209,6 +53,63 @@ type FileAction = {
   created_at: string
 }
 
+
+type UnknownRecord = Record<string, unknown>
+
+function firstValue(item: UnknownRecord, ...keys: string[]): unknown {
+  for (const key of keys) {
+    const value = item[key]
+    if (value !== undefined && value !== null && value !== '') {
+      return value
+    }
+  }
+  return undefined
+}
+
+function normalizeFileStatus(value: unknown): FileStatus {
+  const status = String(value ?? 'CLEAN').trim().toUpperCase().replace(/[ -]+/g, '_')
+  if (status === 'MODIFIED' || status === 'CREATED' || status === 'DELETED') {
+    return status
+  }
+  return 'CLEAN'
+}
+
+function normalizeFileDetails(raw: unknown, fallbackId: string): FileDetailsData {
+  const item = (raw && typeof raw === 'object' ? raw : {}) as UnknownRecord
+  return {
+    id: String(firstValue(item, 'id', 'file_id', 'fileId') ?? fallbackId),
+    fileName: String(firstValue(item, 'fileName', 'file_name', 'name') ?? 'Unknown file'),
+    path: String(firstValue(item, 'path', 'file_path', 'filePath') ?? 'Unknown'),
+    endpoint: String(firstValue(item, 'endpoint', 'endpoint_name', 'endpointName', 'host') ?? 'Unknown'),
+    user: String(firstValue(item, 'user', 'username', 'user_name') ?? 'Unknown'),
+    process: String(firstValue(item, 'process', 'process_name', 'processName') ?? 'Unknown'),
+    status: normalizeFileStatus(firstValue(item, 'status', 'change_status', 'changeStatus')),
+    hashBefore: String(firstValue(item, 'hashBefore', 'hash_before', 'previous_hash', 'baseline_hash') ?? '-'),
+    hashAfter: String(firstValue(item, 'hashAfter', 'hash_after', 'current_hash', 'hash') ?? '-'),
+    lastModified: String(firstValue(item, 'lastModified', 'last_modified', 'modified_at', 'timestamp') ?? 'Unknown'),
+    size: String(firstValue(item, 'size', 'file_size', 'fileSize') ?? 'Unknown'),
+    fileType: String(firstValue(item, 'fileType', 'file_type', 'mime_type') ?? 'Unknown'),
+    permissions: String(firstValue(item, 'permissions', 'file_permissions') ?? 'Unknown'),
+    signer: String(firstValue(item, 'signer', 'signature_status', 'signed_by') ?? 'Unknown'),
+    detection: String(firstValue(item, 'detection', 'detection_reason', 'description') ?? 'No detection details provided by the backend.'),
+    networkActivity: String(firstValue(item, 'networkActivity', 'network_activity') ?? 'No related network activity reported.'),
+  }
+}
+
+function normalizeFileAction(raw: unknown, index: number): FileAction {
+  const item = (raw && typeof raw === 'object' ? raw : {}) as UnknownRecord
+  return {
+    id: Number(firstValue(item, 'id') ?? index + 1),
+    action_id: String(firstValue(item, 'action_id', 'actionId') ?? `ACTION-${index + 1}`),
+    file_id: String(firstValue(item, 'file_id', 'fileId') ?? ''),
+    action: String(firstValue(item, 'action') ?? 'UNKNOWN'),
+    status: String(firstValue(item, 'status') ?? 'RECORDED'),
+    analyst: String(firstValue(item, 'analyst', 'actor') ?? 'Unknown analyst'),
+    created_at: String(firstValue(item, 'created_at', 'createdAt', 'timestamp') ?? ''),
+  }
+}
+
+
 const FILE_ACTION_LABELS: Record<string, string> = {
   INVESTIGATE: 'INVESTIGATION STARTED',
   PRESERVE_EVIDENCE: 'EVIDENCE PRESERVED',
@@ -216,26 +117,137 @@ const FILE_ACTION_LABELS: Record<string, string> = {
   MARK_REVIEWED: 'REVIEWED',
 }
 
+
 function formatActionDate(value: string) {
   const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return value
+
+  if (Number.isNaN(date.getTime())) {
+    return value
+  }
+
   return date.toLocaleString()
 }
 
+
 function FileIntegrityDetails() {
   const { fileId } = useParams()
+  // React Router params are optional; normalize once for TypeScript and API calls.
+  const resolvedFileId = fileId ?? ''
 
-  const file = fileId ? fileDetails[fileId] : undefined
+
+  // =========================================================
+  // FILE DETAILS STATE
+  // =========================================================
+
+  const [file, setFile] = useState<FileDetailsData | null>(null)
+
+  const [loadingFile, setLoadingFile] = useState(true)
+
+  const [fileError, setFileError] = useState<string | null>(null)
+
+
+  // =========================================================
+  // RESPONSE ACTION STATE
+  // =========================================================
+
   const [actions, setActions] = useState<FileAction[]>([])
+
   const [loadingActions, setLoadingActions] = useState(true)
+
   const [submittingAction, setSubmittingAction] = useState<string | null>(null)
+
   const [backendStatus, setBackendStatus] = useState<string | null>(null)
+
   const [actionError, setActionError] = useState<string | null>(null)
 
+
+  // =========================================================
+  // LOAD FILE DETAILS FROM BACKEND
+  // =========================================================
+
   useEffect(() => {
-    if (!fileId) return
+    if (!resolvedFileId) {
+      setFile(null)
+      setFileError('No file event was specified.')
+      setLoadingFile(false)
+      return
+    }
 
     let active = true
+
+    const controller = new AbortController()
+
+
+    async function loadFile() {
+      try {
+        setLoadingFile(true)
+        setFileError(null)
+
+        const response = await fetch(
+          `http://127.0.0.1:8001/api/file-integrity/${encodeURIComponent(resolvedFileId)}`,
+          {
+            signal: controller.signal,
+          },
+        )
+
+        if (!response.ok) {
+          throw new Error(
+            'Unable to load file integrity details',
+          )
+        }
+
+        const data: unknown = await response.json()
+
+        if (active) {
+          setFile(normalizeFileDetails(data, resolvedFileId))
+          setBackendStatus('BACKEND CONNECTED')
+        }
+      } catch (error) {
+        if (
+          active &&
+          !(
+            error instanceof DOMException &&
+            error.name === 'AbortError'
+          )
+        ) {
+          setFile(null)
+
+          setFileError(
+            'Unable to load file integrity details from the backend.',
+          )
+
+          setBackendStatus('BACKEND UNAVAILABLE')
+        }
+      } finally {
+        if (active) {
+          setLoadingFile(false)
+        }
+      }
+    }
+
+
+    void loadFile()
+
+
+    return () => {
+      active = false
+      controller.abort()
+    }
+  }, [resolvedFileId])
+
+
+  // =========================================================
+  // LOAD RESPONSE ACTION HISTORY
+  // =========================================================
+
+  useEffect(() => {
+    if (!resolvedFileId) {
+      setLoadingActions(false)
+      return
+    }
+
+    let active = true
+
 
     async function loadActions() {
       try {
@@ -243,50 +255,71 @@ function FileIntegrityDetails() {
         setActionError(null)
 
         const response = await fetch(
-          `http://127.0.0.1:8000/api/file-integrity/${fileId}/actions`,
+          `http://127.0.0.1:8001/api/file-integrity/${encodeURIComponent(resolvedFileId)}/actions`,
         )
 
         if (!response.ok) {
-          throw new Error('Unable to load file response history')
+          throw new Error(
+            'Unable to load file response history',
+          )
         }
 
         const data = await response.json()
 
         if (active) {
-          setActions(data)
+          if (!Array.isArray(data)) {
+            throw new Error('Invalid response action history')
+          }
+          setActions(data.map((item, index) => normalizeFileAction(item, index)))
           setBackendStatus('BACKEND CONNECTED')
         }
       } catch {
         if (active) {
-          setActionError('Backend response history is unavailable.')
+          setActionError(
+            'Backend response history is unavailable.',
+          )
+
           setBackendStatus('DEMO DATA')
         }
       } finally {
-        if (active) setLoadingActions(false)
+        if (active) {
+          setLoadingActions(false)
+        }
       }
     }
 
+
     void loadActions()
+
 
     return () => {
       active = false
     }
-  }, [fileId])
+  }, [resolvedFileId])
+
+
+  // =========================================================
+  // SUBMIT RESPONSE ACTION
+  // =========================================================
 
   async function submitAction(action: string) {
-    if (!fileId) return
+    if (!resolvedFileId) {
+      return
+    }
 
     try {
       setSubmittingAction(action)
       setActionError(null)
 
       const response = await fetch(
-        `http://127.0.0.1:8000/api/file-integrity/${fileId}/actions`,
+        `http://127.0.0.1:8001/api/file-integrity/${encodeURIComponent(resolvedFileId)}/actions`,
         {
           method: 'POST',
+
           headers: {
             'Content-Type': 'application/json',
           },
+
           body: JSON.stringify({
             action,
             analyst: 'SOC Analyst',
@@ -296,20 +329,70 @@ function FileIntegrityDetails() {
 
       if (!response.ok) {
         const detail = await response.text()
-        throw new Error(detail || 'Unable to create file response action')
+
+        throw new Error(
+          detail ||
+            'Unable to create file response action',
+        )
       }
 
-      const created = (await response.json()) as FileAction
-      setActions((current) => [created, ...current])
+      const created = normalizeFileAction(await response.json(), actions.length)
+
+      setActions((current) => [
+        created,
+        ...current,
+      ])
+
       setBackendStatus('BACKEND CONNECTED')
     } catch {
-      setActionError('The response action could not be recorded.')
+      setActionError(
+        'The response action could not be recorded.',
+      )
     } finally {
       setSubmittingAction(null)
     }
   }
 
-  if (!file) {
+
+  // =========================================================
+  // LOADING STATE
+  // =========================================================
+
+  if (loadingFile) {
+    return (
+      <div className="page-container">
+        <div className="file-detail-not-found">
+
+          <Clock3 size={30} />
+
+          <h2>
+            Loading File Event
+          </h2>
+
+          <p>
+            Loading file integrity details from the
+            CyberSentinel backend.
+          </p>
+
+          <Link
+            to="/file-integrity"
+            className="file-back-link"
+          >
+            <ArrowLeft size={14} />
+            Back to File Integrity
+          </Link>
+
+        </div>
+      </div>
+    )
+  }
+
+
+  // =========================================================
+  // FILE NOT FOUND / API ERROR
+  // =========================================================
+
+  if (fileError || !file) {
     return (
       <div className="page-container">
 
@@ -317,11 +400,13 @@ function FileIntegrityDetails() {
 
           <ShieldAlert size={30} />
 
-          <h2>File Event Not Found</h2>
+          <h2>
+            File Event Not Found
+          </h2>
 
           <p>
-            The requested file event does not exist in the
-            current integrity monitoring dataset.
+            {fileError ??
+              'The requested file event does not exist in the current integrity monitoring dataset.'}
           </p>
 
           <Link
@@ -338,10 +423,14 @@ function FileIntegrityDetails() {
     )
   }
 
-  const statusClass = file.status.toLowerCase()
+
+  const statusClass =
+    file.status.toLowerCase()
+
 
   return (
     <div className="page-container">
+
 
       {/* =========================================
           HEADER
@@ -363,7 +452,9 @@ function FileIntegrityDetails() {
             FILE INVESTIGATION
           </div>
 
-          <h1>{file.fileName}</h1>
+          <h1>
+            {file.fileName}
+          </h1>
 
           <p>
             Detailed integrity investigation for monitored
@@ -371,6 +462,7 @@ function FileIntegrityDetails() {
           </p>
 
         </div>
+
 
         <div
           className={`file-detail-status file-detail-status-${statusClass}`}
@@ -380,6 +472,7 @@ function FileIntegrityDetails() {
         </div>
 
       </div>
+
 
       {/* =========================================
           FILE IDENTITY
@@ -407,17 +500,34 @@ function FileIntegrityDetails() {
 
         </div>
 
-        <div className="file-detail-endpoint">
-          <span>ENDPOINT</span>
-          <strong>{file.endpoint}</strong>
-        </div>
 
         <div className="file-detail-endpoint">
-          <span>MODIFIED BY</span>
-          <strong>{file.process}</strong>
+
+          <span>
+            ENDPOINT
+          </span>
+
+          <strong>
+            {file.endpoint}
+          </strong>
+
+        </div>
+
+
+        <div className="file-detail-endpoint">
+
+          <span>
+            MODIFIED BY
+          </span>
+
+          <strong>
+            {file.process}
+          </strong>
+
         </div>
 
       </section>
+
 
       {/* =========================================
           KEY METRICS
@@ -426,52 +536,73 @@ function FileIntegrityDetails() {
       <section className="file-detail-metrics">
 
         <div className="file-detail-metric">
+
           <Hash size={17} />
 
-          <span>BASELINE HASH</span>
+          <span>
+            BASELINE HASH
+          </span>
 
           <strong>
             {file.hashBefore}
           </strong>
+
         </div>
 
+
         <div className="file-detail-metric">
+
           <Hash size={17} />
 
-          <span>CURRENT HASH</span>
+          <span>
+            CURRENT HASH
+          </span>
 
           <strong>
             {file.hashAfter}
           </strong>
+
         </div>
 
+
         <div className="file-detail-metric">
+
           <User size={17} />
 
-          <span>USER CONTEXT</span>
+          <span>
+            USER CONTEXT
+          </span>
 
           <strong>
             {file.user}
           </strong>
+
         </div>
 
+
         <div className="file-detail-metric">
+
           <Clock3 size={17} />
 
-          <span>LAST MODIFIED</span>
+          <span>
+            LAST MODIFIED
+          </span>
 
           <strong>
             {file.lastModified}
           </strong>
+
         </div>
 
       </section>
+
 
       {/* =========================================
           INVESTIGATION GRID
           ========================================= */}
 
       <section className="file-detail-grid">
+
 
         {/* File Context */}
 
@@ -480,70 +611,144 @@ function FileIntegrityDetails() {
           <div className="file-detail-panel-header">
 
             <div>
-              <strong>File Context</strong>
+
+              <strong>
+                File Context
+              </strong>
 
               <span>
                 File identity and endpoint information
               </span>
+
             </div>
 
             <FileCode2 size={18} />
 
           </div>
 
+
           <div className="file-detail-fields">
 
             <div>
-              <span>FILE NAME</span>
-              <strong>{file.fileName}</strong>
+
+              <span>
+                FILE NAME
+              </span>
+
+              <strong>
+                {file.fileName}
+              </strong>
+
             </div>
 
-            <div>
-              <span>FILE TYPE</span>
-              <strong>{file.fileType}</strong>
-            </div>
 
             <div>
-              <span>ENDPOINT</span>
-              <strong>{file.endpoint}</strong>
+
+              <span>
+                FILE TYPE
+              </span>
+
+              <strong>
+                {file.fileType}
+              </strong>
+
             </div>
 
-            <div>
-              <span>USER</span>
-              <strong>{file.user}</strong>
-            </div>
 
             <div>
-              <span>MODIFYING PROCESS</span>
-              <strong>{file.process}</strong>
+
+              <span>
+                ENDPOINT
+              </span>
+
+              <strong>
+                {file.endpoint}
+              </strong>
+
             </div>
 
-            <div>
-              <span>FILE SIZE</span>
-              <strong>{file.size}</strong>
-            </div>
 
             <div>
-              <span>PERMISSIONS</span>
-              <strong>{file.permissions}</strong>
+
+              <span>
+                USER
+              </span>
+
+              <strong>
+                {file.user}
+              </strong>
+
             </div>
 
+
             <div>
-              <span>SIGNER</span>
-              <strong>{file.signer}</strong>
+
+              <span>
+                MODIFYING PROCESS
+              </span>
+
+              <strong>
+                {file.process}
+              </strong>
+
             </div>
+
+
+            <div>
+
+              <span>
+                FILE SIZE
+              </span>
+
+              <strong>
+                {file.size}
+              </strong>
+
+            </div>
+
+
+            <div>
+
+              <span>
+                PERMISSIONS
+              </span>
+
+              <strong>
+                {file.permissions}
+              </strong>
+
+            </div>
+
+
+            <div>
+
+              <span>
+                SIGNER
+              </span>
+
+              <strong>
+                {file.signer}
+              </strong>
+
+            </div>
+
 
             <div className="file-detail-field-wide">
-              <span>FILE PATH</span>
+
+              <span>
+                FILE PATH
+              </span>
 
               <code>
                 {file.path}
               </code>
+
             </div>
 
           </div>
 
         </div>
+
 
         {/* Security Assessment */}
 
@@ -552,16 +757,21 @@ function FileIntegrityDetails() {
           <div className="file-detail-panel-header">
 
             <div>
-              <strong>Integrity Assessment</strong>
+
+              <strong>
+                Integrity Assessment
+              </strong>
 
               <span>
                 Current security assessment for this file
               </span>
+
             </div>
 
             <ShieldAlert size={18} />
 
           </div>
+
 
           <div className="file-assessment">
 
@@ -589,28 +799,43 @@ function FileIntegrityDetails() {
 
             </div>
 
+
             <div className="file-assessment-row">
-              <span>Detection</span>
+
+              <span>
+                Detection
+              </span>
 
               <strong>
                 {file.detection}
               </strong>
+
             </div>
 
+
             <div className="file-assessment-row">
-              <span>Baseline Hash</span>
+
+              <span>
+                Baseline Hash
+              </span>
 
               <code>
                 {file.hashBefore}
               </code>
+
             </div>
 
+
             <div className="file-assessment-row">
-              <span>Current Hash</span>
+
+              <span>
+                Current Hash
+              </span>
 
               <code>
                 {file.hashAfter}
               </code>
+
             </div>
 
           </div>
@@ -618,6 +843,7 @@ function FileIntegrityDetails() {
         </div>
 
       </section>
+
 
       {/* =========================================
           HASH COMPARISON
@@ -628,16 +854,21 @@ function FileIntegrityDetails() {
         <div className="file-detail-panel-header">
 
           <div>
-            <strong>Hash Comparison</strong>
+
+            <strong>
+              Hash Comparison
+            </strong>
 
             <span>
               Baseline versus current file integrity state
             </span>
+
           </div>
 
           <Hash size={18} />
 
         </div>
+
 
         <div className="file-hash-comparison">
 
@@ -653,9 +884,11 @@ function FileIntegrityDetails() {
 
           </div>
 
+
           <div className="file-hash-arrow">
             →
           </div>
+
 
           <div className="file-hash-block">
 
@@ -673,27 +906,34 @@ function FileIntegrityDetails() {
 
       </section>
 
+
       {/* =========================================
           ACTIVITY
           ========================================= */}
 
       <section className="file-detail-grid">
 
+
         <div className="file-detail-panel">
 
           <div className="file-detail-panel-header">
 
             <div>
-              <strong>Related Activity</strong>
+
+              <strong>
+                Related Activity
+              </strong>
 
               <span>
                 Process and network context
               </span>
+
             </div>
 
             <Network size={18} />
 
           </div>
+
 
           <div className="file-related-list">
 
@@ -716,6 +956,7 @@ function FileIntegrityDetails() {
               </div>
 
             </div>
+
 
             <div className="file-related-item">
 
@@ -741,21 +982,27 @@ function FileIntegrityDetails() {
 
         </div>
 
+
         <div className="file-detail-panel">
 
           <div className="file-detail-panel-header">
 
             <div>
-              <strong>Integrity Timeline</strong>
+
+              <strong>
+                Integrity Timeline
+              </strong>
 
               <span>
                 Important file events
               </span>
+
             </div>
 
             <Clock3 size={18} />
 
           </div>
+
 
           <div className="file-timeline">
 
@@ -764,6 +1011,7 @@ function FileIntegrityDetails() {
               <span />
 
               <div>
+
                 <strong>
                   File telemetry observed
                 </strong>
@@ -771,15 +1019,18 @@ function FileIntegrityDetails() {
                 <small>
                   {file.lastModified}
                 </small>
+
               </div>
 
             </div>
+
 
             <div className="file-timeline-item">
 
               <span />
 
               <div>
+
                 <strong>
                   Integrity comparison performed
                 </strong>
@@ -787,15 +1038,18 @@ function FileIntegrityDetails() {
                 <small>
                   +08 seconds
                 </small>
+
               </div>
 
             </div>
+
 
             <div className="file-timeline-item">
 
               <span />
 
               <div>
+
                 <strong>
                   Security assessment generated
                 </strong>
@@ -803,6 +1057,7 @@ function FileIntegrityDetails() {
                 <small>
                   +21 seconds
                 </small>
+
               </div>
 
             </div>
@@ -813,33 +1068,61 @@ function FileIntegrityDetails() {
 
       </section>
 
+
       {/* =========================================
           RESPONSE WORKFLOW
           ========================================= */}
 
       <section className="file-detail-panel file-notes-panel">
+
         <div className="file-detail-panel-header">
+
           <div>
-            <strong>Response Workflow</strong>
-            <span>Record analyst actions against this file event</span>
+
+            <strong>
+              Response Workflow
+            </strong>
+
+            <span>
+              Record analyst actions against this file event
+            </span>
+
           </div>
+
           <ShieldAlert size={18} />
+
         </div>
 
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginTop: 16 }}>
-          <button
-            type="button"
-            className="file-back-link"
-            onClick={() => void submitAction('INVESTIGATE')}
-            disabled={submittingAction !== null}
-          >
-            {submittingAction === 'INVESTIGATE' ? 'Recording...' : 'Investigate File'}
-          </button>
+
+        <div
+          style={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: 10,
+            marginTop: 16,
+          }}
+        >
 
           <button
             type="button"
             className="file-back-link"
-            onClick={() => void submitAction('PRESERVE_EVIDENCE')}
+            onClick={() =>
+              void submitAction('INVESTIGATE')
+            }
+            disabled={submittingAction !== null}
+          >
+            {submittingAction === 'INVESTIGATE'
+              ? 'Recording...'
+              : 'Investigate File'}
+          </button>
+
+
+          <button
+            type="button"
+            className="file-back-link"
+            onClick={() =>
+              void submitAction('PRESERVE_EVIDENCE')
+            }
             disabled={submittingAction !== null}
           >
             {submittingAction === 'PRESERVE_EVIDENCE'
@@ -847,10 +1130,13 @@ function FileIntegrityDetails() {
               : 'Preserve Evidence'}
           </button>
 
+
           <button
             type="button"
             className="file-back-link"
-            onClick={() => void submitAction('QUARANTINE_FILE')}
+            onClick={() =>
+              void submitAction('QUARANTINE_FILE')
+            }
             disabled={submittingAction !== null}
           >
             {submittingAction === 'QUARANTINE_FILE'
@@ -858,70 +1144,140 @@ function FileIntegrityDetails() {
               : 'Quarantine File'}
           </button>
 
+
           <button
             type="button"
             className="file-back-link"
-            onClick={() => void submitAction('MARK_REVIEWED')}
+            onClick={() =>
+              void submitAction('MARK_REVIEWED')
+            }
             disabled={submittingAction !== null}
           >
             {submittingAction === 'MARK_REVIEWED'
               ? 'Recording...'
               : 'Mark Reviewed'}
           </button>
+
         </div>
 
+
         {backendStatus && (
-          <div style={{ marginTop: 14, fontSize: 12, letterSpacing: 1 }}>
+          <div
+            style={{
+              marginTop: 14,
+              fontSize: 12,
+              letterSpacing: 1,
+            }}
+          >
             {backendStatus}
           </div>
         )}
 
+
         {actionError && (
-          <div style={{ marginTop: 12, fontSize: 13 }}>
+          <div
+            style={{
+              marginTop: 12,
+              fontSize: 13,
+            }}
+          >
             {actionError}
           </div>
         )}
 
-        <div className="file-notes" style={{ marginTop: 18 }}>
+
+        <div
+          className="file-notes"
+          style={{ marginTop: 18 }}
+        >
+
           <p>
-            Response actions are recorded as analyst workflow events. These
-            actions do not directly delete, restore, or quarantine files on the
-            endpoint.
+            Response actions are recorded as analyst workflow
+            events. These actions do not directly delete, restore,
+            or quarantine files on the endpoint.
           </p>
+
         </div>
 
+
         <div style={{ marginTop: 18 }}>
-          <div className="file-detail-panel-header" style={{ padding: 0 }}>
+
+          <div
+            className="file-detail-panel-header"
+            style={{ padding: 0 }}
+          >
+
             <div>
-              <strong>Response History</strong>
-              <span>Persistent actions recorded by the CyberSentinel API</span>
+
+              <strong>
+                Response History
+              </strong>
+
+              <span>
+                Persistent actions recorded by the CyberSentinel API
+              </span>
+
             </div>
+
           </div>
 
+
           {loadingActions ? (
-            <div style={{ marginTop: 16 }}>Loading response history...</div>
+
+            <div style={{ marginTop: 16 }}>
+              Loading response history...
+            </div>
+
           ) : actions.length === 0 ? (
-            <div style={{ marginTop: 16 }}>No response actions recorded yet.</div>
+
+            <div style={{ marginTop: 16 }}>
+              No response actions recorded yet.
+            </div>
+
           ) : (
-            <div className="file-timeline" style={{ marginTop: 16 }}>
+
+            <div
+              className="file-timeline"
+              style={{ marginTop: 16 }}
+            >
+
               {actions.map((action) => (
-                <div className="file-timeline-item" key={action.action_id}>
+
+                <div
+                  className="file-timeline-item"
+                  key={`${action.action_id}-${action.id}`}
+                >
+
                   <span />
+
                   <div>
+
                     <strong>
-                      {FILE_ACTION_LABELS[action.action] ?? action.status}
+                      {
+                        FILE_ACTION_LABELS[action.action] ??
+                        action.status
+                      }
                     </strong>
+
                     <small>
                       {action.action_id} · {action.analyst} ·{' '}
                       {formatActionDate(action.created_at)}
                     </small>
+
                   </div>
+
                 </div>
+
               ))}
+
             </div>
+
           )}
+
         </div>
+
       </section>
+
 
       {/* =========================================
           INVESTIGATION NOTES
@@ -932,6 +1288,7 @@ function FileIntegrityDetails() {
         <div className="file-detail-panel-header">
 
           <div>
+
             <strong>
               Analyst Investigation Notes
             </strong>
@@ -939,77 +1296,124 @@ function FileIntegrityDetails() {
             <span>
               Initial observations from file integrity telemetry
             </span>
+
           </div>
 
           <ShieldAlert size={18} />
 
         </div>
 
+
         <div className="file-notes">
 
           {file.status === 'MODIFIED' ? (
+
             <>
-              <p>
-                <AlertTriangle size={14} />
-                File content differs from the established
-                integrity baseline.
-              </p>
 
               <p>
+
+                <AlertTriangle size={14} />
+
+                File content differs from the established
+                integrity baseline.
+
+              </p>
+
+
+              <p>
+
                 Review the modifying process, command-line
                 activity, user context, and related network
                 connections.
+
               </p>
 
+
               <p>
+
                 Confirm whether the change was authorized before
                 restoring the known-good baseline.
-              </p>
-            </>
-          ) : file.status === 'CREATED' ? (
-            <>
-              <p>
-                <AlertTriangle size={14} />
-                A new file was created on the monitored endpoint.
+
               </p>
 
+            </>
+
+          ) : file.status === 'CREATED' ? (
+
+            <>
+
               <p>
+
+                <AlertTriangle size={14} />
+
+                A new file was created on the monitored endpoint.
+
+              </p>
+
+
+              <p>
+
                 Validate the file origin, parent process,
                 signer, hash reputation, and execution history.
-              </p>
-            </>
-          ) : file.status === 'DELETED' ? (
-            <>
-              <p>
-                <AlertTriangle size={14} />
-                A monitored file was deleted from the endpoint.
+
               </p>
 
+            </>
+
+          ) : file.status === 'DELETED' ? (
+
+            <>
+
               <p>
+
+                <AlertTriangle size={14} />
+
+                A monitored file was deleted from the endpoint.
+
+              </p>
+
+
+              <p>
+
                 Determine whether the deletion was authorized and
                 investigate the process responsible for the action.
-              </p>
-            </>
-          ) : (
-            <>
-              <p>
-                <CheckCircle2 size={14} />
-                Current file hash matches the established baseline.
+
               </p>
 
+            </>
+
+          ) : (
+
+            <>
+
               <p>
+
+                <CheckCircle2 size={14} />
+
+                Current file hash matches the established baseline.
+
+              </p>
+
+
+              <p>
+
                 No immediate integrity deviation was identified
                 in the available telemetry.
+
               </p>
+
             </>
+
           )}
 
         </div>
 
       </section>
 
+
     </div>
   )
 }
+
 
 export default FileIntegrityDetails

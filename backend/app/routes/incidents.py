@@ -12,21 +12,76 @@ from app.database import Base, get_db
 class Incident(Base):
     __tablename__ = "incidents"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
-    incident_id: Mapped[str] = mapped_column(String(50), unique=True, index=True)
-    title: Mapped[str] = mapped_column(String(200))
-    description: Mapped[str] = mapped_column(Text)
-    severity: Mapped[str] = mapped_column(String(20), index=True)
-    status: Mapped[str] = mapped_column(String(30), index=True, default="OPEN")
-    analyst: Mapped[str] = mapped_column(String(100), default="SOC Analyst")
-    primary_asset: Mapped[str] = mapped_column(String(100))
-    related_event_ids: Mapped[str] = mapped_column(Text, default="")
-    related_alert_ids: Mapped[str] = mapped_column(Text, default="")
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    id: Mapped[int] = mapped_column(
+        Integer,
+        primary_key=True,
+        index=True,
+    )
+
+    incident_id: Mapped[str] = mapped_column(
+        String(50),
+        unique=True,
+        index=True,
+        nullable=False,
+    )
+
+    title: Mapped[str] = mapped_column(
+        String(200),
+        nullable=False,
+    )
+
+    description: Mapped[str] = mapped_column(
+        Text,
+        nullable=False,
+    )
+
+    severity: Mapped[str] = mapped_column(
+        String(20),
+        index=True,
+        nullable=False,
+    )
+
+    status: Mapped[str] = mapped_column(
+        String(30),
+        index=True,
+        default="OPEN",
+        nullable=False,
+    )
+
+    analyst: Mapped[str] = mapped_column(
+        String(100),
+        default="SOC Analyst",
+        nullable=False,
+    )
+
+    primary_asset: Mapped[str] = mapped_column(
+        String(100),
+        nullable=False,
+    )
+
+    related_event_ids: Mapped[str] = mapped_column(
+        Text,
+        default="",
+        nullable=False,
+    )
+
+    related_alert_ids: Mapped[str] = mapped_column(
+        Text,
+        default="",
+        nullable=False,
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        default=datetime.utcnow,
+        nullable=False,
+    )
+
     updated_at: Mapped[datetime] = mapped_column(
         DateTime,
         default=datetime.utcnow,
         onupdate=datetime.utcnow,
+        nullable=False,
     )
 
 
@@ -52,7 +107,11 @@ class IncidentStatusUpdate(BaseModel):
     analyst: str = "SOC Analyst"
 
 
-router = APIRouter(prefix="/api/incidents", tags=["Incidents"])
+router = APIRouter(
+    prefix="/api/incidents",
+    tags=["Incidents"],
+)
+
 
 ALLOWED_STATUSES = {
     "OPEN",
@@ -66,7 +125,10 @@ SEED_INCIDENTS = [
     {
         "incident_id": "INC-003",
         "title": "Suspicious outbound PowerShell activity",
-        "description": "Critical network activity involving PowerShell execution and an external HTTPS destination.",
+        "description": (
+            "Critical network activity involving PowerShell execution "
+            "and an external HTTPS destination."
+        ),
         "severity": "CRITICAL",
         "status": "INVESTIGATING",
         "analyst": "SOC Analyst",
@@ -77,7 +139,10 @@ SEED_INCIDENTS = [
     {
         "incident_id": "INC-001",
         "title": "PowerShell execution policy bypass",
-        "description": "High-severity endpoint activity associated with a PowerShell execution policy bypass.",
+        "description": (
+            "High-severity endpoint activity associated with a "
+            "PowerShell execution policy bypass."
+        ),
         "severity": "HIGH",
         "status": "OPEN",
         "analyst": "SOC Analyst",
@@ -88,7 +153,10 @@ SEED_INCIDENTS = [
     {
         "incident_id": "INC-002",
         "title": "Repeated RDP authentication failures",
-        "description": "Multiple authentication failures were detected against an RDP service.",
+        "description": (
+            "Multiple authentication failures were detected "
+            "against an RDP service."
+        ),
         "severity": "MEDIUM",
         "status": "CONTAINED",
         "analyst": "SOC Analyst",
@@ -99,7 +167,10 @@ SEED_INCIDENTS = [
     {
         "incident_id": "INC-006",
         "title": "Unsigned executable execution",
-        "description": "An unsigned executable was observed executing from a non-standard location.",
+        "description": (
+            "An unsigned executable was observed executing "
+            "from a non-standard location."
+        ),
         "severity": "HIGH",
         "status": "INVESTIGATING",
         "analyst": "SOC Analyst",
@@ -110,7 +181,10 @@ SEED_INCIDENTS = [
     {
         "incident_id": "INC-007",
         "title": "Security file deletion attempt",
-        "description": "A security-related file deletion attempt was detected and blocked.",
+        "description": (
+            "A security-related file deletion attempt "
+            "was detected and blocked."
+        ),
         "severity": "HIGH",
         "status": "CONTAINED",
         "analyst": "SOC Analyst",
@@ -121,7 +195,10 @@ SEED_INCIDENTS = [
     {
         "incident_id": "INC-008",
         "title": "Administrative group membership change",
-        "description": "A new administrative group membership was detected and requires review.",
+        "description": (
+            "A new administrative group membership was detected "
+            "and requires review."
+        ),
         "severity": "MEDIUM",
         "status": "OPEN",
         "analyst": "SOC Analyst",
@@ -132,8 +209,15 @@ SEED_INCIDENTS = [
 ]
 
 
-def _split_ids(value: str) -> list[str]:
-    return [item.strip() for item in value.split(",") if item.strip()]
+def _split_ids(value: Optional[str]) -> list[str]:
+    if not value:
+        return []
+
+    return [
+        item.strip()
+        for item in value.split(",")
+        if item.strip()
+    ]
 
 
 def _serialize(incident: Incident) -> dict:
@@ -146,16 +230,23 @@ def _serialize(incident: Incident) -> dict:
         "status": incident.status,
         "analyst": incident.analyst,
         "primary_asset": incident.primary_asset,
-        "related_event_ids": _split_ids(incident.related_event_ids),
-        "related_alert_ids": _split_ids(incident.related_alert_ids),
+        "related_event_ids": _split_ids(
+            incident.related_event_ids
+        ),
+        "related_alert_ids": _split_ids(
+            incident.related_alert_ids
+        ),
         "created_at": incident.created_at,
         "updated_at": incident.updated_at,
     }
 
 
 def seed_incidents(db: Session) -> None:
-    existing = db.scalars(select(Incident.incident_id)).all()
-    existing_ids = set(existing)
+    existing_ids = set(
+        db.scalars(
+            select(Incident.incident_id)
+        ).all()
+    )
 
     created = False
 
@@ -170,31 +261,57 @@ def seed_incidents(db: Session) -> None:
         db.commit()
 
 
-@router.get("", response_model=list[IncidentResponse])
-def read_incidents(db: Session = Depends(get_db)):
+@router.get(
+    "",
+    response_model=list[IncidentResponse],
+)
+def read_incidents(
+    db: Session = Depends(get_db),
+):
     seed_incidents(db)
 
-    statement = select(Incident).order_by(Incident.updated_at.desc())
+    statement = (
+        select(Incident)
+        .order_by(Incident.updated_at.desc())
+    )
+
     incidents = db.scalars(statement).all()
 
-    return [_serialize(incident) for incident in incidents]
+    return [
+        _serialize(incident)
+        for incident in incidents
+    ]
 
 
-@router.get("/{incident_id}", response_model=IncidentResponse)
-def read_incident(incident_id: str, db: Session = Depends(get_db)):
+@router.get(
+    "/{incident_id}",
+    response_model=IncidentResponse,
+)
+def read_incident(
+    incident_id: str,
+    db: Session = Depends(get_db),
+):
     seed_incidents(db)
 
     incident = db.scalar(
-        select(Incident).where(Incident.incident_id == incident_id)
+        select(Incident).where(
+            Incident.incident_id == incident_id
+        )
     )
 
     if incident is None:
-        raise HTTPException(status_code=404, detail="Incident not found")
+        raise HTTPException(
+            status_code=404,
+            detail="Incident not found",
+        )
 
     return _serialize(incident)
 
 
-@router.patch("/{incident_id}", response_model=IncidentResponse)
+@router.patch(
+    "/{incident_id}",
+    response_model=IncidentResponse,
+)
 def update_incident(
     incident_id: str,
     payload: IncidentStatusUpdate,
@@ -205,21 +322,31 @@ def update_incident(
     if status not in ALLOWED_STATUSES:
         raise HTTPException(
             status_code=400,
-            detail=f"Unsupported incident status. Allowed: {sorted(ALLOWED_STATUSES)}",
+            detail=(
+                "Unsupported incident status. "
+                f"Allowed: {sorted(ALLOWED_STATUSES)}"
+            ),
         )
 
     incident = db.scalar(
-        select(Incident).where(Incident.incident_id == incident_id)
+        select(Incident).where(
+            Incident.incident_id == incident_id
+        )
     )
 
     if incident is None:
-        raise HTTPException(status_code=404, detail="Incident not found")
+        raise HTTPException(
+            status_code=404,
+            detail="Incident not found",
+        )
+
+    analyst = payload.analyst.strip()
 
     incident.status = status
-    incident.analyst = payload.analyst.strip() or "SOC Analyst"
+    incident.analyst = analyst or "SOC Analyst"
     incident.updated_at = datetime.utcnow()
 
     db.commit()
     db.refresh(incident)
 
-    return _serialize(incident)
+    return _serialize(incident) 
