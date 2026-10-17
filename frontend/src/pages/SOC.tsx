@@ -194,15 +194,22 @@ function MetricCard({
   value,
   detail,
   tone,
+  to,
 }: {
   icon: React.ReactNode
   label: string
   value: string
   detail: string
   tone: string
+  to: string
 }) {
   return (
-    <div className={`soc-metric-card ${tone}`}>
+    <Link
+      to={to}
+      className={`soc-metric-card ${tone} soc-metric-link`}
+      style={{ color: "inherit", textDecoration: "none" }}
+      aria-label={`${label}: ${value}. ${detail}. Open related section`}
+    >
       <div className="soc-metric-top">
         <div className="soc-metric-icon">{icon}</div>
         <span className="soc-live-dot" />
@@ -211,7 +218,7 @@ function MetricCard({
       <div className="soc-metric-value">{value}</div>
       <div className="soc-metric-label">{label}</div>
       <div className="soc-metric-detail">{detail}</div>
-    </div>
+    </Link>
   )
 }
 
@@ -532,6 +539,7 @@ export default function SOC() {
           value={String(activeThreats)}
           detail="Critical and high severity events"
           tone="danger"
+          to="/alerts"
         />
 
         <MetricCard
@@ -540,6 +548,7 @@ export default function SOC() {
           value={String(criticalAlerts)}
           detail="Loaded from alert service"
           tone="critical"
+          to="/alerts"
         />
 
         <MetricCard
@@ -548,6 +557,7 @@ export default function SOC() {
           value={String(endpointsAtRisk)}
           detail="High, critical, warning or offline"
           tone="warning"
+          to="/endpoints"
         />
 
         <MetricCard
@@ -556,6 +566,7 @@ export default function SOC() {
           value={String(events.length)}
           detail="Events in current API snapshot"
           tone="cyan"
+          to="/soc"
         />
 
         <MetricCard
@@ -564,6 +575,7 @@ export default function SOC() {
           value={String(networkConnections)}
           detail="Connections from network service"
           tone="blue"
+          to="/network"
         />
 
         <MetricCard
@@ -572,6 +584,7 @@ export default function SOC() {
           value={String(openIncidents)}
           detail="Loaded from incident service"
           tone="purple"
+          to="/incidents"
         />
       </div>
 
@@ -707,17 +720,17 @@ export default function SOC() {
             <div>
               <span>
                 <CheckCircle2 size={15} />
-                Endpoint Coverage
+                Endpoint Inventory
               </span>
-              <strong>{endpoints.length > 0 ? '100%' : '—'}</strong>
+              <strong>{endpoints.length > 0 ? endpoints.length : '—'}</strong>
             </div>
 
             <div>
               <span>
                 <CheckCircle2 size={15} />
-                Detection Coverage
+                Events In Snapshot
               </span>
-              <strong>{events.length > 0 ? '100%' : '—'}</strong>
+              <strong>{events.length > 0 ? events.length : '—'}</strong>
             </div>
 
             <div>
@@ -885,7 +898,7 @@ export default function SOC() {
           </div>
 
           <div className="soc-queue-list">
-            <div className="soc-queue-item">
+            <Link to="/alerts" className="soc-queue-item soc-queue-link" style={{ color: "inherit", textDecoration: "none" }}>
               <div className="soc-queue-icon critical">
                 <AlertTriangle size={16} />
               </div>
@@ -894,9 +907,9 @@ export default function SOC() {
                 <span>Loaded from alert service</span>
               </div>
               <b>{String(criticalAlerts).padStart(2, '0')}</b>
-            </div>
+            </Link>
 
-            <div className="soc-queue-item">
+            <Link to="/alerts" className="soc-queue-item soc-queue-link" style={{ color: "inherit", textDecoration: "none" }}>
               <div className="soc-queue-icon high">
                 <ShieldAlert size={16} />
               </div>
@@ -905,9 +918,9 @@ export default function SOC() {
                 <span>High and critical events requiring attention</span>
               </div>
               <b>{String(activeThreats).padStart(2, '0')}</b>
-            </div>
+            </Link>
 
-            <div className="soc-queue-item">
+            <Link to="/endpoints" className="soc-queue-item soc-queue-link" style={{ color: "inherit", textDecoration: "none" }}>
               <div className="soc-queue-icon medium">
                 <Bug size={16} />
               </div>
@@ -916,9 +929,9 @@ export default function SOC() {
                 <span>Requires endpoint investigation</span>
               </div>
               <b>{String(endpointsAtRisk).padStart(2, '0')}</b>
-            </div>
+            </Link>
 
-            <div className="soc-queue-item">
+            <Link to="/incidents" className="soc-queue-item soc-queue-link" style={{ color: "inherit", textDecoration: "none" }}>
               <div className="soc-queue-icon high">
                 <Zap size={16} />
               </div>
@@ -927,7 +940,7 @@ export default function SOC() {
                 <span>Active investigation cases</span>
               </div>
               <b>{String(openIncidents).padStart(2, '0')}</b>
-            </div>
+            </Link>
           </div>
         </section>
       </div>
