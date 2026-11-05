@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.alert import Alert
 from app.models.security_event import SecurityEvent
+from app.routes.detection_rule_actions import DetectionRuleState
 
 class DetectionRuleResponse(BaseModel):
     id: str
@@ -188,8 +189,15 @@ def _serialize(rule: dict, db: Session) -> dict:
     alert_ids = list(dict.fromkeys(alert_ids))
     incident_ids = list(dict.fromkeys(incident_ids))
 
+    saved_state = db.scalar(
+        select(DetectionRuleState).where(
+            DetectionRuleState.rule_id == rule["id"]
+        )
+    )
+
     return {
         **rule,
+        "status": saved_state.status if saved_state else rule["status"],
         "event_ids": event_ids,
         "alert_ids": alert_ids,
         "incident_ids": incident_ids,

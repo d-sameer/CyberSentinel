@@ -102,6 +102,50 @@ type TrafficSnapshot = {
 
 
 
+type LiveWindowsConnection = {
+  source: string
+  observed_at: string
+  protocol: string
+  local: { ip: string; port: number } | null
+  remote: { ip: string; port: number } | null
+  status: string
+  pid: number | null
+  process: string | null
+}
+
+type LiveWindowsResponse = {
+  source: string
+  observed_at: string
+  total_observed: number
+  limit: number
+  permission_limited: boolean
+  connections: LiveWindowsConnection[]
+}
+type LiveThreatFinding = {
+  rule: string
+  severity: string
+  reason: string
+}
+
+type LiveThreatConnection = LiveWindowsConnection & {
+  security_analysis: {
+    risk_score: number
+    risk_level: string
+    findings: LiveThreatFinding[]
+    review_required: boolean
+  }
+}
+
+type LiveThreatResponse = {
+  source: string
+  observed_at: string
+  total_observed: number
+  limit: number
+  permission_limited: boolean
+  connections: LiveThreatConnection[]
+  flagged_count: number
+  flagged_connections: LiveThreatConnection[]
+}
 type ProtocolSummary = {
 
   protocol: string
@@ -386,6 +430,290 @@ function Network() {
 
 
 
+  const [liveConnections, setLiveConnections] = useState<LiveWindowsConnection[]>([])
+  const [liveObservedAt, setLiveObservedAt] = useState<string | null>(null)
+  const [liveLoading, setLiveLoading] = useState(true)
+  const [liveError, setLiveError] = useState<string | null>(null)
+  const [livePermissionLimited, setLivePermissionLimited] = useState(false)
+  const [liveThreatData, setLiveThreatData] = useState<LiveThreatResponse | null>(null)
+  const [liveThreatLoading, setLiveThreatLoading] = useState(true)
+  const [liveThreatError, setLiveThreatError] = useState<string | null>(null)
+  const [liveSearch, setLiveSearch] = useState('')
+  const [liveProtocolFilter, setLiveProtocolFilter] = useState('ALL')
+  const [liveStatusFilter, setLiveStatusFilter] = useState('ALL')
+  const [liveSortKey, setLiveSortKey] = useState('protocol')
+  const [liveSortDirection, setLiveSortDirection] = useState<'asc' | 'desc'>('asc')
+  const [liveHistoryRecords, setLiveHistoryRecords] = useState<any[]>([])
+  const [liveHistoryTotal, setLiveHistoryTotal] = useState(0)
+  const [liveHistorySearch, setLiveHistorySearch] = useState('')
+  const [liveHistoryStatusFilter, setLiveHistoryStatusFilter] = useState('ALL')
+
+  const filteredLiveHistory = liveHistoryRecords.filter((record) => {
+    const search = liveHistorySearch.trim().toLowerCase()
+    const matchesSearch = !search || [
+      record.protocol,
+      record.local_ip,
+      record.local_port,
+      record.remote_ip,
+      record.remote_port,
+      record.process,
+      record.pid,
+      record.analyst,
+      record.status,
+    ].some((value) => String(value ?? '').toLowerCase().includes(search))
+
+    const matchesStatus =
+      liveHistoryStatusFilter === 'ALL' ||
+      record.status === liveHistoryStatusFilter
+
+    return matchesSearch && matchesStatus
+  })
+  const [liveHistoryLoading, setLiveHistoryLoading] = useState(false)
+  const [liveHistoryError, setLiveHistoryError] = useState<string | null>(null)
+
+  const loadLiveHistory = useCallback(async () => {
+    setLiveHistoryLoading(true)
+    setLiveHistoryError(null)
+    try {
+      const response = await fetch(`${API_URL}/live/investigations?limit=100&offset=0`)
+      if (!response.ok) throw new Error(`History request failed: ${response.status}`)
+      const payload = await response.json()
+      setLiveHistoryRecords(payload.investigations ?? [])
+      setLiveHistoryTotal(payload.total ?? 0)
+    } catch (error) {
+      setLiveHistoryError(error instanceof Error ? error.message : 'Unable to load investigation history.')
+    } finally {
+      setLiveHistoryLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    void loadLiveHistory()
+  }, [loadLiveHistory])
+  const [selectedLiveConnection, setSelectedLiveConnection] =
+    useState<LiveWindowsConnection | null>(null)
+  const [liveInvestigationStatus, setLiveInvestigationStatus] = useState('Under Investigation')
+  const [liveInvestigationNotes, setLiveInvestigationNotes] = useState('')
+  const [liveInvestigationAnalyst, setLiveInvestigationAnalyst] = useState('SOC Analyst')
+  const [liveInvestigationLoading, setLiveInvestigationLoading] = useState(false)
+  const [liveInvestigationSaving, setLiveInvestigationSaving] = useState(false)
+  const [liveInvestigationError, setLiveInvestigationError] = useState<string | null>(null)
+  const [liveInvestigationFound, setLiveInvestigationFound] = useState(false)
+  const [liveInvestigationSavedAt, setLiveInvestigationSavedAt] = useState<string | null>(null)
+  const [liveInvestigationCreatedAt, setLiveInvestigationCreatedAt] = useState<string | null>(null)
+  const [liveInvestigationUpdatedAt, setLiveInvestigationUpdatedAt] = useState<string | null>(null)
+  const [liveInvestigationId, setLiveInvestigationId] = useState<number | null>(null)
+  const [liveAuditEvents, setLiveAuditEvents] = useState<Array<{
+    id: number
+    event_type: string
+    previous_status: string | null
+    new_status: string
+    analyst: string
+    notes: string
+    created_at: string
+  }>>([])
+  const [liveAuditLoading, setLiveAuditLoading] = useState(false)
+  const [liveAuditError, setLiveAuditError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!selectedLiveConnection) return
+
+    document.getElementById('live-connection-investigation')?.scrollIntoView({
+      behavior: 'smooth',
+      block: 'start',
+    })
+
+    let cancelled = false
+    const connection = selectedLiveConnection
+
+    const loadInvestigation = async () => {
+      setLiveInvestigationLoading(true)
+      setLiveInvestigationError(null)
+      setLiveInvestigationFound(false)
+      setLiveInvestigationId(null)
+      setLiveAuditEvents([])
+      setLiveAuditError(null)
+      setLiveInvestigationCreatedAt(null)
+      setLiveInvestigationUpdatedAt(null)
+      setLiveInvestigationStatus('Under Investigation')
+      setLiveInvestigationNotes('')
+      setLiveInvestigationAnalyst('SOC Analyst')
+
+      const body = {
+        protocol: connection.protocol,
+        local_ip: connection.local?.ip ?? '',
+        local_port: connection.local?.port ?? null,
+        remote_ip: connection.remote?.ip ?? '',
+        remote_port: connection.remote?.port ?? null,
+        process: connection.process ?? '',
+        pid: connection.pid,
+      }
+
+      try {
+        const response = await fetch(`${API_URL}/live/investigations/lookup`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        })
+        if (!response.ok) throw new Error(`Lookup failed: ${response.status}`)
+
+        const payload = await response.json()
+        if (cancelled) return
+
+        if (payload.found && payload.investigation) {
+          setLiveInvestigationFound(true)
+          setLiveInvestigationId(payload.investigation.id)
+          setLiveInvestigationCreatedAt(payload.investigation.created_at ?? null)
+          setLiveInvestigationUpdatedAt(payload.investigation.updated_at ?? null)
+          setLiveInvestigationStatus(payload.investigation.status)
+          setLiveInvestigationNotes(payload.investigation.notes ?? '')
+          setLiveInvestigationAnalyst(payload.investigation.analyst ?? 'SOC Analyst')
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setLiveInvestigationError(
+            error instanceof Error ? error.message : 'Unable to load investigation.',
+          )
+        }
+      } finally {
+        if (!cancelled) setLiveInvestigationLoading(false)
+      }
+    }
+
+    void loadInvestigation()
+    return () => { cancelled = true }
+  }, [selectedLiveConnection])
+
+  useEffect(() => {
+    if (!liveInvestigationId) {
+      setLiveAuditEvents([])
+      return
+    }
+
+    let cancelled = false
+
+    const loadAuditEvents = async () => {
+      setLiveAuditLoading(true)
+      setLiveAuditError(null)
+
+      try {
+        const response = await fetch(
+          `${API_URL}/live/investigations/${liveInvestigationId}/events`,
+        )
+        if (!response.ok) {
+          throw new Error(`Audit history request failed: ${response.status}`)
+        }
+
+        const payload = await response.json()
+        if (!cancelled) {
+          setLiveAuditEvents(payload.events ?? [])
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setLiveAuditError(
+            error instanceof Error ? error.message : 'Unable to load audit history.',
+          )
+        }
+      } finally {
+        if (!cancelled) setLiveAuditLoading(false)
+      }
+    }
+
+    void loadAuditEvents()
+    return () => { cancelled = true }
+  }, [liveInvestigationId])
+
+  const liveAnalytics = useMemo(() => {
+    const established = liveConnections.filter(
+      (connection) => connection.status.toUpperCase() === 'ESTABLISHED',
+    ).length
+
+    const listening = liveConnections.filter(
+      (connection) => connection.status.toUpperCase() === 'LISTEN',
+    ).length
+
+    const external = liveConnections.filter((connection) => {
+      const ip = connection.remote?.ip
+      if (!ip) return false
+
+      return !(
+        ip === '127.0.0.1' ||
+        ip === '::1' ||
+        ip.startsWith('10.') ||
+        ip.startsWith('192.168.') ||
+        /^172\.(1[6-9]|2[0-9]|3[01])\./.test(ip) ||
+        ip.startsWith('fe80:') ||
+        ip.startsWith('fc') ||
+        ip.startsWith('fd')
+      )
+    }).length
+
+    const processes = new Set(
+      liveConnections
+        .map((connection) => connection.process)
+        .filter((process): process is string => Boolean(process)),
+    ).size
+
+    return {
+      total: liveConnections.length,
+      established,
+      listening,
+      external,
+      processes,
+    }
+  }, [liveConnections])
+  const filteredLiveConnections = useMemo(() => {
+    const query = liveSearch.trim().toLowerCase()
+
+    return liveConnections.filter((connection) => {
+      const searchable = [
+        connection.local?.ip,
+        connection.local?.port,
+        connection.remote?.ip,
+        connection.remote?.port,
+        connection.process,
+        connection.pid,
+      ].some((value) => String(value ?? '').toLowerCase().includes(query))
+
+      const protocolMatch =
+        liveProtocolFilter === 'ALL' ||
+        connection.protocol.toUpperCase() === liveProtocolFilter
+
+      const statusMatch =
+        liveStatusFilter === 'ALL' ||
+        connection.status.toUpperCase() === liveStatusFilter
+
+      return (!query || searchable) && protocolMatch && statusMatch
+    })
+  }, [liveConnections, liveSearch, liveProtocolFilter, liveStatusFilter])
+  const sortedLiveConnections = useMemo(() => {
+    const getValue = (connection: LiveWindowsConnection, key: string) => {
+      switch (key) {
+        case 'protocol': return connection.protocol
+        case 'localPort': return connection.local?.port ?? -1
+        case 'remotePort': return connection.remote?.port ?? -1
+        case 'status': return connection.status
+        case 'process': return connection.process ?? ''
+        case 'pid': return connection.pid ?? -1
+        default: return ''
+      }
+    }
+
+    return [...filteredLiveConnections].sort((a, b) => {
+      const first = getValue(a, liveSortKey)
+      const second = getValue(b, liveSortKey)
+
+      const result =
+        typeof first === 'number' && typeof second === 'number'
+          ? first - second
+          : String(first).localeCompare(String(second), undefined, {
+              numeric: true,
+              sensitivity: 'base',
+            })
+
+      return liveSortDirection === 'asc' ? result : -result
+    })
+  }, [filteredLiveConnections, liveSortKey, liveSortDirection])
   const [trafficHistory, setTrafficHistory] = useState<TrafficSnapshot[]>([])
 
   const [trafficLoading, setTrafficLoading] = useState(true)
@@ -404,6 +732,43 @@ function Network() {
 
 
 
+  const loadLiveConnections = useCallback(async () => {
+    try {
+      const response = await fetch(`${API_URL}/live?limit=200`)
+      if (!response.ok) {
+        throw new Error(`Live connection API returned ${response.status}`)
+      }
+
+      const payload = await response.json() as LiveWindowsResponse
+      setLiveConnections(Array.isArray(payload.connections) ? payload.connections : [])
+      setLiveObservedAt(payload.observed_at ?? null)
+      setLivePermissionLimited(Boolean(payload.permission_limited))
+      setLiveError(null)
+    } catch (err) {
+      setLiveError(
+        err instanceof Error ? err.message : 'Unable to load live Windows connections.',
+      )
+    } finally {
+      setLiveLoading(false)
+    }
+  }, [])
+  const loadLiveThreats = useCallback(async () => {
+    try {
+      const response = await fetch(`${API_URL}/live/threats?limit=200`)
+      if (!response.ok) {
+        throw new Error(`Threat detection API returned ${response.status}`)
+      }
+      const payload = await response.json() as LiveThreatResponse
+      setLiveThreatData(payload)
+      setLiveThreatError(null)
+    } catch (err) {
+      setLiveThreatError(
+        err instanceof Error ? err.message : 'Unable to load threat detection results.',
+      )
+    } finally {
+      setLiveThreatLoading(false)
+    }
+  }, [])
   const loadTrafficHistory = useCallback(async () => {
 
     setTrafficError(null)
@@ -687,26 +1052,25 @@ function Network() {
 
 
   useEffect(() => {
-
     void loadNetwork()
-
     void loadTrafficHistory()
-
-
+    void loadLiveConnections()
 
     const interval = window.setInterval(() => {
-
       void loadNetwork(true)
-
       void loadTrafficHistory()
-
     }, 60_000)
 
+    const liveInterval = window.setInterval(() => {
+      void loadLiveConnections()
+      void loadLiveThreats()
+    }, 30_000)
 
-
-    return () => window.clearInterval(interval)
-
-  }, [loadNetwork, loadTrafficHistory])
+    return () => {
+      window.clearInterval(interval)
+      window.clearInterval(liveInterval)
+    }
+  }, [loadNetwork, loadTrafficHistory, loadLiveConnections, loadLiveThreats])
 
 
 
@@ -2410,6 +2774,865 @@ function Network() {
 
 
 
+      <section className="network-panel" style={{ marginBottom: 24 }}>
+        <div className="network-panel-header">
+          <div>
+            <div className="network-panel-title">
+              Live Windows Connections
+            </div>
+            <div className="network-panel-subtitle">
+              Actual connection-table observations collected from this Windows machine
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <span style={{
+              color: '#34d399',
+              fontSize: 11,
+              fontWeight: 700,
+              padding: '5px 9px',
+              borderRadius: 6,
+              background: 'rgba(52, 211, 153, 0.10)',
+            }}>
+              LIVE
+            </span>
+            <button
+              type="button"
+              onClick={() => void loadLiveConnections()}
+              disabled={liveLoading}
+              style={buttonStyle}
+            >
+              <RefreshCw size={14} />
+              Refresh
+            </button>
+          </div>
+        </div>
+
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
+          gap: 12,
+          padding: '16px 20px',
+        }}>
+          {[
+            { label: 'Total Connections', value: liveAnalytics.total, color: '#67e8f9' },
+            { label: 'Established', value: liveAnalytics.established, color: '#34d399' },
+            { label: 'Listening Ports', value: liveAnalytics.listening, color: '#a78bfa' },
+            { label: 'External Remotes', value: liveAnalytics.external, color: '#fbbf24' },
+            { label: 'Unique Processes', value: liveAnalytics.processes, color: '#60a5fa' },
+          ].map((metric) => (
+            <div
+              key={metric.label}
+              style={{
+                padding: '16px',
+                borderRadius: 10,
+                background: 'rgba(148, 163, 184, 0.06)',
+                border: '1px solid rgba(148, 163, 184, 0.12)',
+              }}
+            >
+              <div style={{ color: '#94a3b8', fontSize: 11, marginBottom: 9 }}>
+                {metric.label}
+              </div>
+              <div style={{
+                color: metric.color,
+                fontSize: 25,
+                fontWeight: 700,
+                fontVariantNumeric: 'tabular-nums',
+              }}>
+                {formatCount(metric.value)}
+              </div>
+            </div>
+          ))}
+        </div>
+        <div style={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          justifyContent: 'space-between',
+          gap: 12,
+          padding: '14px 20px',
+          borderBottom: '1px solid rgba(148, 163, 184, 0.10)',
+        }}>
+          <div style={{ color: '#cbd5e1', fontSize: 13 }}>
+            Observed connections: <strong style={{ color: '#67e8f9' }}>
+              {formatCount(liveConnections.length)}
+            </strong>
+          </div>
+          <div style={{ color: '#94a3b8', fontSize: 12 }}>
+            Last collected: {liveObservedAt
+              ? new Date(liveObservedAt).toLocaleTimeString()
+              : 'Waiting for data'}
+          </div>
+        </div>
+
+        {livePermissionLimited && (
+          <div style={{ padding: '12px 20px', color: '#fbbf24', fontSize: 12 }}>
+            Windows permissions limited the connection information available.
+          </div>
+        )}
+
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'minmax(220px, 2fr) repeat(2, minmax(150px, 1fr)) auto',
+          gap: 12,
+          padding: '16px 20px',
+          alignItems: 'center',
+          borderBottom: '1px solid rgba(148, 163, 184, 0.10)',
+        }}>
+          <input
+            type="text"
+            value={liveSearch}
+            onChange={(event) => setLiveSearch(event.target.value)}
+            placeholder="Search IP, port, process or PID..."
+            style={{
+              width: '100%',
+              boxSizing: 'border-box',
+              padding: '11px 13px',
+              borderRadius: 8,
+              border: '1px solid rgba(148, 163, 184, 0.20)',
+              background: 'rgba(15, 23, 42, 0.75)',
+              color: '#e2e8f0',
+            }}
+          />
+          <select
+            value={liveProtocolFilter}
+            onChange={(event) => setLiveProtocolFilter(event.target.value)}
+            style={{
+              padding: '11px 12px',
+              borderRadius: 8,
+              border: '1px solid rgba(148, 163, 184, 0.20)',
+              background: '#111c2e',
+              color: '#e2e8f0',
+            }}
+          >
+            <option value="ALL">All Protocols</option>
+            <option value="TCP">TCP</option>
+            <option value="UDP">UDP</option>
+          </select>
+          <select
+            value={liveStatusFilter}
+            onChange={(event) => setLiveStatusFilter(event.target.value)}
+            style={{
+              padding: '11px 12px',
+              borderRadius: 8,
+              border: '1px solid rgba(148, 163, 184, 0.20)',
+              background: '#111c2e',
+              color: '#e2e8f0',
+            }}
+          >
+            <option value="ALL">All Statuses</option>
+            <option value="ESTABLISHED">Established</option>
+            <option value="LISTEN">Listening</option>
+            <option value="TIME_WAIT">Time Wait</option>
+            <option value="CLOSE_WAIT">Close Wait</option>
+            <option value="NONE">None (UDP)</option>
+          </select>
+          <button
+            type="button"
+            onClick={() => {
+              setLiveSearch('')
+              setLiveProtocolFilter('ALL')
+              setLiveStatusFilter('ALL')
+            }}
+            style={{
+              padding: '11px 14px',
+              borderRadius: 8,
+              border: '1px solid rgba(103, 232, 249, 0.25)',
+              background: 'rgba(103, 232, 249, 0.08)',
+              color: '#67e8f9',
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            Clear Filters
+          </button>
+        </div>
+
+        <div style={{
+          padding: '11px 20px',
+          color: '#94a3b8',
+          fontSize: 12,
+          borderBottom: '1px solid rgba(148, 163, 184, 0.10)',
+        }}>
+          Showing <strong style={{ color: '#67e8f9' }}>
+            {formatCount(filteredLiveConnections.length)}
+          </strong> of {formatCount(liveConnections.length)} live connections
+        </div>
+      {selectedLiveConnection && (
+        <div
+          id="live-connection-investigation"
+          style={{
+          scrollMarginTop: 24,
+          margin: '16px 20px',
+          padding: 20,
+          borderRadius: 12,
+          border: '1px solid rgba(103, 232, 249, 0.25)',
+          background: 'rgba(15, 23, 42, 0.85)',
+        }}>
+          <div style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            gap: 12,
+            marginBottom: 18,
+          }}>
+            <div>
+              <div style={{ color: '#67e8f9', fontSize: 11, fontWeight: 700 }}>
+                LIVE CONNECTION DETAILS
+              </div>
+              <div style={{ color: '#f1f5f9', fontSize: 18, fontWeight: 700, marginTop: 5 }}>
+                {selectedLiveConnection.process || 'Unknown process'}
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setSelectedLiveConnection(null)}
+              style={{
+                padding: '8px 13px',
+                borderRadius: 7,
+                border: '1px solid rgba(148, 163, 184, 0.25)',
+                background: 'rgba(148, 163, 184, 0.08)',
+                color: '#cbd5e1',
+                cursor: 'pointer',
+              }}
+            >
+              Close
+            </button>
+          </div>
+
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+            gap: 12,
+          }}>
+            {[
+              { label: 'PROTOCOL', value: selectedLiveConnection.protocol },
+              { label: 'STATUS', value: selectedLiveConnection.status || 'UNKNOWN' },
+              { label: 'LOCAL IP', value: selectedLiveConnection.local?.ip ?? '—' },
+              { label: 'LOCAL PORT', value: selectedLiveConnection.local?.port ?? '—' },
+              { label: 'REMOTE IP', value: selectedLiveConnection.remote?.ip ?? '—' },
+              { label: 'REMOTE PORT', value: selectedLiveConnection.remote?.port ?? '—' },
+              { label: 'PROCESS', value: selectedLiveConnection.process ?? 'Unknown' },
+              { label: 'PROCESS ID (PID)', value: selectedLiveConnection.pid ?? 'Unavailable' },
+              { label: 'SOURCE', value: selectedLiveConnection.source },
+              {
+                label: 'OBSERVED AT',
+                value: new Date(selectedLiveConnection.observed_at).toLocaleString(),
+              },
+            ].map((item) => (
+              <div key={item.label} style={{
+                padding: 12,
+                borderRadius: 8,
+                background: 'rgba(30, 41, 59, 0.65)',
+                minWidth: 0,
+              }}>
+                <div style={{
+                  color: '#94a3b8',
+                  fontSize: 10,
+                  fontWeight: 700,
+                  marginBottom: 7,
+                }}>
+                  {item.label}
+                </div>
+                <div style={{
+                  color: '#e2e8f0',
+                  fontSize: 13,
+                  overflowWrap: 'anywhere',
+                }}>
+                  {String(item.value)}
+                </div>
+              </div>
+            ))}
+          </div>
+          <div style={{
+            marginTop: 20,
+            padding: 16,
+            borderRadius: 10,
+            border: '1px solid rgba(103, 232, 249, 0.20)',
+            background: 'rgba(8, 15, 30, 0.75)',
+          }}>
+            <div style={{ color: '#67e8f9', fontSize: 12, fontWeight: 700, marginBottom: 14 }}>
+              LIVE CONNECTION INVESTIGATION
+            </div>
+
+            {liveInvestigationLoading ? (
+              <div style={{ color: '#94a3b8', fontSize: 13 }}>Checking saved investigation...</div>
+            ) : (
+              <>
+                <div style={{
+                  color: liveInvestigationFound ? '#4ade80' : '#94a3b8',
+                  fontSize: 12,
+                  marginBottom: 14,
+                }}>
+                  {liveInvestigationFound ? 'Existing investigation loaded' : 'No saved investigation for this connection yet'}
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
+                  <label style={{ display: 'flex', flexDirection: 'column', gap: 7, color: '#94a3b8', fontSize: 11, fontWeight: 700 }}>
+                    INVESTIGATION STATUS
+                    <select
+                      value={liveInvestigationStatus}
+                      onChange={(event) => setLiveInvestigationStatus(event.target.value)}
+                      style={{ padding: 10, borderRadius: 7, border: '1px solid rgba(148, 163, 184, 0.25)', background: '#0f172a', color: '#e2e8f0' }}
+                    >
+                      <option value="Open">Open</option>
+                      <option value="Under Investigation">Under Investigation</option>
+                      <option value="Resolved">Resolved</option>
+                      <option value="False Positive">False Positive</option>
+                    </select>
+                  </label>
+
+                  <label style={{ display: 'flex', flexDirection: 'column', gap: 7, color: '#94a3b8', fontSize: 11, fontWeight: 700 }}>
+                    ANALYST
+                    <input
+                      value={liveInvestigationAnalyst}
+                      onChange={(event) => setLiveInvestigationAnalyst(event.target.value)}
+                      maxLength={100}
+                      placeholder="Analyst name"
+                      style={{ padding: 10, borderRadius: 7, border: '1px solid rgba(148, 163, 184, 0.25)', background: '#0f172a', color: '#e2e8f0' }}
+                    />
+                  </label>
+                </div>
+
+                <label style={{ display: 'flex', flexDirection: 'column', gap: 7, color: '#94a3b8', fontSize: 11, fontWeight: 700, marginTop: 14 }}>
+                  ANALYST NOTES
+                  <textarea
+                    value={liveInvestigationNotes}
+                    onChange={(event) => setLiveInvestigationNotes(event.target.value)}
+                    maxLength={10000}
+                    rows={4}
+                    placeholder="Record investigation findings, observations and actions..."
+                    style={{ width: '100%', boxSizing: 'border-box', padding: 12, borderRadius: 7, border: '1px solid rgba(148, 163, 184, 0.25)', background: '#0f172a', color: '#e2e8f0', resize: 'vertical', font: 'inherit', fontSize: 13 }}
+                  />
+                </label>
+
+                <div style={{
+                  marginTop: 16,
+                  padding: 14,
+                  borderRadius: 8,
+                  background: 'rgba(15, 23, 42, 0.65)',
+                  border: '1px solid rgba(103, 232, 249, 0.2)',
+                }}>
+                  <div style={{ color: '#67e8f9', fontSize: 13, fontWeight: 700, marginBottom: 12 }}>
+                    Investigation Timeline
+                  </div>
+                  <div style={{ display: 'grid', gap: 12 }}>
+                    <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                      <div style={{ color: '#4ade80', fontSize: 16 }}>●</div>
+                      <div>
+                        <div style={{ color: '#e2e8f0', fontSize: 12, fontWeight: 600 }}>
+                          Investigation Created
+                        </div>
+                        <div style={{ color: '#94a3b8', fontSize: 11, marginTop: 3 }}>
+                          {liveInvestigationCreatedAt
+                            ? new Date(liveInvestigationCreatedAt).toLocaleString()
+                            : 'Not available'}
+                        </div>
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                      <div style={{ color: '#38bdf8', fontSize: 16 }}>●</div>
+                      <div>
+                        <div style={{ color: '#e2e8f0', fontSize: 12, fontWeight: 600 }}>
+                          Last Updated
+                        </div>
+                        <div style={{ color: '#94a3b8', fontSize: 11, marginTop: 3 }}>
+                          {liveInvestigationUpdatedAt
+                            ? new Date(liveInvestigationUpdatedAt).toLocaleString()
+                            : 'Not available'}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{
+                  marginTop: 16,
+                  padding: 14,
+                  borderRadius: 8,
+                  background: 'rgba(15, 23, 42, 0.65)',
+                  border: '1px solid rgba(103, 232, 249, 0.2)',
+                }}>
+                  <div style={{
+                    color: '#67e8f9',
+                    fontSize: 13,
+                    fontWeight: 700,
+                    marginBottom: 12,
+                  }}>
+                    Investigation Audit Event History
+                  </div>
+
+                  {liveAuditLoading ? (
+                    <div style={{ color: '#94a3b8', fontSize: 12 }}>
+                      Loading audit events...
+                    </div>
+                  ) : liveAuditError ? (
+                    <div style={{ color: '#f87171', fontSize: 12 }}>
+                      {liveAuditError}
+                    </div>
+                  ) : liveAuditEvents.length === 0 ? (
+                    <div style={{ color: '#94a3b8', fontSize: 12 }}>
+                      No audit events recorded yet. The first event will appear after saving this investigation.
+                    </div>
+                  ) : (
+                    <div style={{ display: 'grid', gap: 12 }}>
+                      {liveAuditEvents.map((event) => (
+                        <div key={event.id} style={{
+                          padding: 12,
+                          borderRadius: 7,
+                          background: 'rgba(30, 41, 59, 0.55)',
+                          border: '1px solid rgba(148, 163, 184, 0.14)',
+                        }}>
+                          <div style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            flexWrap: 'wrap',
+                            gap: 8,
+                          }}>
+                            <span style={{
+                              color: event.event_type === 'Created' ? '#4ade80' : '#38bdf8',
+                              fontSize: 12,
+                              fontWeight: 700,
+                            }}>
+                              {event.event_type === 'Created' ? '● CREATED' : '● UPDATED'}
+                            </span>
+                            <span style={{ color: '#94a3b8', fontSize: 11 }}>
+                              {new Date(event.created_at).toLocaleString()}
+                            </span>
+                          </div>
+
+                          <div style={{
+                            color: '#e2e8f0',
+                            fontSize: 12,
+                            marginTop: 9,
+                          }}>
+                            Status: {event.previous_status
+                              ? `${event.previous_status} → ${event.new_status}`
+                              : event.new_status}
+                          </div>
+
+                          <div style={{
+                            color: '#cbd5e1',
+                            fontSize: 12,
+                            marginTop: 5,
+                          }}>
+                            Analyst: {event.analyst}
+                          </div>
+
+                          <div style={{
+                            color: '#94a3b8',
+                            fontSize: 12,
+                            marginTop: 7,
+                            whiteSpace: 'pre-wrap',
+                            overflowWrap: 'anywhere',
+                          }}>
+                            Notes: {event.notes || 'No notes recorded'}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {liveInvestigationSavedAt && (
+                  <div style={{
+                    marginTop: 12,
+                    padding: 11,
+                    borderRadius: 7,
+                    background: 'rgba(34, 197, 94, 0.10)',
+                    border: '1px solid rgba(34, 197, 94, 0.25)',
+                    color: '#4ade80',
+                    fontSize: 12,
+                  }}>
+                    Investigation saved successfully at {new Date(liveInvestigationSavedAt).toLocaleTimeString()}.
+                  </div>
+                )}
+                {liveInvestigationError && (
+                  <div style={{ color: '#f87171', fontSize: 12, marginTop: 12 }}>
+                    {liveInvestigationError}
+                  </div>
+                )}
+
+                <button
+                  type="button"
+                  disabled={liveInvestigationSaving || !liveInvestigationAnalyst.trim()}
+                  onClick={async () => {
+                    const connection = selectedLiveConnection
+                    setLiveInvestigationSaving(true)
+                    setLiveInvestigationError(null)
+
+                    try {
+                      const response = await fetch(`${API_URL}/live/investigations`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          protocol: connection.protocol,
+                          local_ip: connection.local?.ip ?? '',
+                          local_port: connection.local?.port ?? null,
+                          remote_ip: connection.remote?.ip ?? '',
+                          remote_port: connection.remote?.port ?? null,
+                          process: connection.process ?? '',
+                          pid: connection.pid,
+                          status: liveInvestigationStatus,
+                          analyst: liveInvestigationAnalyst.trim(),
+                          notes: liveInvestigationNotes,
+                        }),
+                      })
+
+                      if (!response.ok) {
+                        const detail = await response.json().catch(() => null)
+                        throw new Error(detail?.detail ?? `Save failed: ${response.status}`)
+                      }
+
+                      const savedPayload = await response.json()
+                      const savedAt = new Date().toISOString()
+                      setLiveInvestigationId(savedPayload.investigation.id)
+                      setLiveInvestigationFound(true)
+                      setLiveInvestigationCreatedAt((current) => current ?? savedAt)
+                      setLiveInvestigationUpdatedAt(savedAt)
+                      setLiveInvestigationSavedAt(savedAt)
+                      void loadLiveHistory()
+                    } catch (error) {
+                      setLiveInvestigationError(
+                        error instanceof Error ? error.message : 'Unable to save investigation.',
+                      )
+                    } finally {
+                      setLiveInvestigationSaving(false)
+                    }
+                  }}
+                  style={{ marginTop: 14, padding: '10px 16px', borderRadius: 7, border: '1px solid rgba(103, 232, 249, 0.35)', background: 'rgba(8, 145, 178, 0.20)', color: '#67e8f9', fontWeight: 700, cursor: 'pointer' }}
+                >
+                  {liveInvestigationSaving ? 'Saving...' : 'Save Investigation'}
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+        {liveError ? (
+          <div style={{ padding: 20, color: '#f87171', fontSize: 13 }}>
+            Unable to load live connections: {liveError}
+          </div>
+        ) : liveLoading && liveConnections.length === 0 ? (
+          <div style={{ padding: 24, color: '#94a3b8', fontSize: 13 }}>
+            Collecting live Windows connections...
+          </div>
+        ) : liveConnections.length === 0 ? (
+          <div style={{ padding: 24, color: '#94a3b8', fontSize: 13 }}>
+            No live connection observations are currently available.
+          </div>
+        ) : (
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{
+              width: '100%',
+              minWidth: 850,
+              borderCollapse: 'collapse',
+              textAlign: 'left',
+            }}>
+              <thead>
+                <tr style={{
+                  color: '#94a3b8',
+                  fontSize: 11,
+                  borderBottom: '1px solid rgba(148, 163, 184, 0.12)',
+                }}>
+                  {[
+                    { label: 'PROTOCOL', key: 'protocol' },
+                    { label: 'LOCAL ADDRESS', key: 'localPort' },
+                    { label: 'REMOTE ADDRESS', key: 'remotePort' },
+                    { label: 'STATUS', key: 'status' },
+                    { label: 'PROCESS', key: 'process' },
+                    { label: 'PID', key: 'pid' },
+                  ].map(({ label, key }) => (
+                    <th
+                      key={key}
+                      onClick={() => {
+                        if (liveSortKey === key) {
+                          setLiveSortDirection((current) => current === 'asc' ? 'desc' : 'asc')
+                        } else {
+                          setLiveSortKey(key)
+                          setLiveSortDirection('asc')
+                        }
+                      }}
+                      title="Click to sort"
+                      style={{
+                        padding: '13px 16px',
+                        fontWeight: 600,
+                        whiteSpace: 'nowrap',
+                        cursor: 'pointer',
+                        userSelect: 'none',
+                      }}
+                    >
+                      {label} {liveSortKey === key ? (liveSortDirection === 'asc' ? '↑' : '↓') : '↕'}
+                    </th>
+                  ))}
+
+                </tr>
+              </thead>
+              <tbody>
+                {sortedLiveConnections.map((connection, index) => (
+                  <tr
+                    key={`${connection.pid}-${connection.protocol}-${connection.local?.port}-${connection.remote?.ip}-${index}`}
+                    onClick={() => setSelectedLiveConnection(connection)}
+                    title="Click to view connection details"
+                    style={{
+                      cursor: 'pointer',
+                      borderBottom: '1px solid rgba(148, 163, 184, 0.08)',
+                      color: '#cbd5e1',
+                      fontSize: 12,
+                    }}
+                  >
+                    <td style={{ padding: '13px 16px', fontWeight: 700, color: '#67e8f9' }}>
+                      {connection.protocol}
+                    </td>
+                    <td style={{ padding: '13px 16px', whiteSpace: 'nowrap' }}>
+                      {connection.local
+                        ? `${connection.local.ip}:${connection.local.port}`
+                        : '—'}
+                    </td>
+                    <td style={{ padding: '13px 16px', whiteSpace: 'nowrap' }}>
+                      {connection.remote
+                        ? `${connection.remote.ip}:${connection.remote.port}`
+                        : '—'}
+                    </td>
+                    <td style={{ padding: '13px 16px' }}>
+                      {connection.status || 'UNKNOWN'}
+                    </td>
+                    <td style={{ padding: '13px 16px' }}>
+                      {connection.process || 'Unknown'}
+                    </td>
+                    <td style={{ padding: '13px 16px' }}>
+                      {connection.pid ?? '�'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+      <section className="network-panel" style={{ marginBottom: 24, overflow: 'hidden' }}>
+        <div className="network-panel-header">
+          <div>
+            <div className="network-panel-title">Live Threat Detection</div>
+            <div className="network-panel-subtitle">
+              Evidence-based analysis of live Windows network observations
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => void loadLiveThreats()}
+            disabled={liveThreatLoading}
+            style={{
+              padding: '9px 14px',
+              borderRadius: 7,
+              border: '1px solid rgba(103,232,249,0.3)',
+              background: 'rgba(8,145,178,0.15)',
+              color: '#67e8f9',
+              cursor: liveThreatLoading ? 'wait' : 'pointer',
+            }}
+          >
+            {liveThreatLoading ? 'Scanning...' : 'Refresh Threat Scan'}
+          </button>
+        </div>
+
+        {liveThreatError ? (
+          <div style={{ padding: 20, color: '#f87171', fontSize: 13 }}>
+            Unable to load threat detection: {liveThreatError}
+          </div>
+        ) : liveThreatLoading && !liveThreatData ? (
+          <div style={{ padding: 24, color: '#94a3b8', fontSize: 13 }}>
+            Analysing live Windows connections...
+          </div>
+        ) : liveThreatData ? (
+          <div style={{ padding: 20 }}>
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(145px, 1fr))',
+              gap: 12,
+              marginBottom: 20,
+            }}>
+              {[
+                { label: 'Connections Scanned', value: liveThreatData.total_observed, color: '#e2e8f0' },
+                { label: 'Flagged for Review', value: liveThreatData.flagged_count, color: '#fbbf24' },
+                { label: 'High Risk', value: liveThreatData.flagged_connections.filter(item => item.security_analysis.risk_level === 'HIGH').length, color: '#f87171' },
+                { label: 'Medium Risk', value: liveThreatData.flagged_connections.filter(item => item.security_analysis.risk_level === 'MEDIUM').length, color: '#fbbf24' },
+                { label: 'Low Risk', value: liveThreatData.flagged_connections.filter(item => item.security_analysis.risk_level === 'LOW').length, color: '#60a5fa' },
+              ].map(metric => (
+                <div key={metric.label} style={{ padding: 15, borderRadius: 9, background: '#111c2e', border: '1px solid #263449' }}>
+                  <div style={{ color: '#94a3b8', fontSize: 12 }}>{metric.label}</div>
+                  <div style={{ color: metric.color, fontSize: 25, fontWeight: 700, marginTop: 5 }}>{metric.value}</div>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10, marginBottom: 14 }}>
+              <div style={{ color: '#cbd5e1', fontSize: 13, fontWeight: 600 }}>Detection Findings</div>
+              <div style={{ color: '#64748b', fontSize: 11 }}>
+                Last scan: {new Date(liveThreatData.observed_at).toLocaleString()}
+              </div>
+            </div>
+
+            {liveThreatData.flagged_connections.length === 0 ? (
+              <div style={{ padding: 22, borderRadius: 9, border: '1px solid rgba(52,211,153,0.2)', background: 'rgba(16,185,129,0.06)', color: '#6ee7b7', fontSize: 13 }}>
+                No connections currently require review under the configured detection rules.
+              </div>
+            ) : (
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 760, fontSize: 12 }}>
+                  <thead>
+                    <tr style={{ color: '#94a3b8', textAlign: 'left', borderBottom: '1px solid #263449' }}>
+                      {['Risk', 'Score', 'Process', 'Protocol', 'Local Address', 'Remote Address', 'Detection Reason'].map(header => (
+                        <th key={header} style={{ padding: '12px 10px', fontWeight: 600 }}>{header}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {liveThreatData.flagged_connections.map((item, index) => {
+                      const risk = item.security_analysis.risk_level
+                      const riskColor = risk === 'HIGH' ? '#f87171' : risk === 'MEDIUM' ? '#fbbf24' : '#60a5fa'
+                      return (
+                        <tr key={`${item.pid ?? 'unknown'}-${item.protocol}-${item.local?.port ?? 0}-${item.remote?.ip ?? 'none'}-${index}`} style={{ borderBottom: '1px solid #1e293b' }}>
+                          <td style={{ padding: '13px 10px' }}>
+                            <span style={{ color: riskColor, background: `${riskColor}18`, border: `1px solid ${riskColor}55`, padding: '4px 8px', borderRadius: 5, fontWeight: 700, fontSize: 10 }}>{risk}</span>
+                          </td>
+                          <td style={{ padding: '13px 10px', color: '#e2e8f0', fontWeight: 700 }}>{item.security_analysis.risk_score}</td>
+                          <td style={{ padding: '13px 10px', color: '#cbd5e1' }}>{item.process || 'Unknown'}</td>
+                          <td style={{ padding: '13px 10px', color: '#cbd5e1' }}>{item.protocol}</td>
+                          <td style={{ padding: '13px 10px', color: '#94a3b8' }}>{item.local ? `${item.local.ip}:${item.local.port}` : '—'}</td>
+                          <td style={{ padding: '13px 10px', color: '#94a3b8' }}>{item.remote ? `${item.remote.ip}:${item.remote.port}` : '—'}</td>
+                          <td style={{ padding: '13px 10px', color: '#cbd5e1', maxWidth: 320 }}>
+                            {item.security_analysis.findings.map(finding => (
+                              <div key={finding.rule} style={{ marginBottom: 5 }}>
+                                <span style={{ color: '#67e8f9', fontWeight: 600 }}>{finding.rule}: </span>
+                                {finding.reason}
+                              </div>
+                            ))}
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            <div style={{ marginTop: 14, color: '#64748b', fontSize: 11, lineHeight: 1.6 }}>
+              Detection results are review prompts based on configured rules, not proof of malicious activity. No connections are blocked or modified automatically.
+            </div>
+          </div>
+        ) : null}
+      </section>
+      <section className="network-panel" style={{ marginBottom: 24, overflow: 'hidden' }}>
+        <div className="network-panel-header">
+          <div>
+            <div className="network-panel-title">Live Investigation History</div>
+            <div className="network-panel-subtitle">
+              {liveHistoryTotal} saved investigations
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => void loadLiveHistory()}
+            disabled={liveHistoryLoading}
+            style={{ padding: '9px 14px', borderRadius: 7, border: '1px solid rgba(103,232,249,0.3)', background: 'rgba(8,145,178,0.15)', color: '#67e8f9', cursor: 'pointer' }}
+          >
+            {liveHistoryLoading ? 'Refreshing...' : 'Refresh History'}
+          </button>
+        </div>
+
+        {liveHistoryError && (
+          <div style={{ padding: 16, color: '#f87171', fontSize: 13 }}>
+            {liveHistoryError}
+          </div>
+        )}
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12, padding: '14px 16px', borderBottom: '1px solid rgba(148,163,184,0.10)' }}>
+          <input
+            type="text"
+            value={liveHistorySearch}
+            onChange={(event) => setLiveHistorySearch(event.target.value)}
+            placeholder="Search IP, process, PID or analyst..."
+            aria-label="Search investigation history"
+            style={{ width: '100%', boxSizing: 'border-box', padding: 11, borderRadius: 8, border: '1px solid rgba(148,163,184,0.25)', background: '#0b1220', color: '#e2e8f0' }}
+          />
+          <select
+            value={liveHistoryStatusFilter}
+            onChange={(event) => setLiveHistoryStatusFilter(event.target.value)}
+            aria-label="Filter investigation history by status"
+            style={{ width: '100%', padding: 11, borderRadius: 8, border: '1px solid rgba(148,163,184,0.25)', background: '#0b1220', color: '#e2e8f0' }}
+          >
+            <option value="ALL">All investigation statuses</option>
+            <option value="Open">Open</option>
+            <option value="Under Investigation">Under Investigation</option>
+            <option value="Resolved">Resolved</option>
+            <option value="False Positive">False Positive</option>
+          </select>
+        </div>
+
+        <div style={{ padding: '10px 16px', color: '#94a3b8', fontSize: 12 }}>
+          Showing {filteredLiveHistory.length} of {liveHistoryTotal} investigations. Select a row to reopen it.
+        </div>
+        {liveHistoryLoading && filteredLiveHistory.length === 0 ? (
+          <div style={{ padding: 20, color: '#94a3b8', fontSize: 13 }}>Loading investigation history...</div>
+        ) : filteredLiveHistory.length === 0 ? (
+          <div style={{ padding: 20, color: '#94a3b8', fontSize: 13 }}>No saved investigations yet.</div>
+        ) : (
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 850 }}>
+              <thead>
+                <tr style={{ textAlign: 'left', color: '#94a3b8', fontSize: 10, letterSpacing: 1 }}>
+                  {['PROTOCOL', 'LOCAL ADDRESS', 'REMOTE ADDRESS', 'PROCESS', 'PID', 'STATUS', 'ANALYST', 'LAST UPDATED'].map((heading) => (
+                    <th key={heading} style={{ padding: '12px 14px', whiteSpace: 'nowrap' }}>{heading}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {filteredLiveHistory.map((record) => (
+                  <tr
+                    key={record.id}
+                    onClick={() => setSelectedLiveConnection({
+                      source: 'windows_psutil',
+                      observed_at: record.updated_at ?? record.created_at ?? '',
+                      protocol: record.protocol,
+                      local: record.local_ip ? { ip: record.local_ip, port: record.local_port ?? 0 } : null,
+                      remote: record.remote_ip ? { ip: record.remote_ip, port: record.remote_port ?? 0 } : null,
+                      status: 'UNKNOWN',
+                      pid: record.pid,
+                      process: record.process,
+                    })}
+                    title="Click to reopen this investigation"
+                    tabIndex={0}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter') {
+                        setSelectedLiveConnection({
+                          source: 'windows_psutil',
+                          observed_at: record.updated_at ?? record.created_at ?? '',
+                          protocol: record.protocol,
+                          local: record.local_ip ? { ip: record.local_ip, port: record.local_port ?? 0 } : null,
+                          remote: record.remote_ip ? { ip: record.remote_ip, port: record.remote_port ?? 0 } : null,
+                          status: 'UNKNOWN',
+                          pid: record.pid,
+                          process: record.process,
+                        })
+                      }
+                    }}
+                    style={{ borderTop: '1px solid rgba(148,163,184,0.10)', color: '#cbd5e1', fontSize: 12, cursor: 'pointer' }}
+                  >
+                    <td style={{ padding: '13px 14px', color: '#67e8f9', fontWeight: 700 }}>{record.protocol}</td>
+                    <td style={{ padding: '13px 14px', whiteSpace: 'nowrap' }}>{record.local_ip || '—'}:{record.local_port ?? '—'}</td>
+                    <td style={{ padding: '13px 14px', whiteSpace: 'nowrap' }}>{record.remote_ip || '—'}:{record.remote_port ?? '—'}</td>
+                    <td style={{ padding: '13px 14px' }}>{record.process || 'Unknown'}</td>
+                    <td style={{ padding: '13px 14px' }}>{record.pid ?? '—'}</td>
+                    <td style={{ padding: '13px 14px', whiteSpace: 'nowrap' }}>{record.status}</td>
+                    <td style={{ padding: '13px 14px' }}>{record.analyst}</td>
+                    <td style={{ padding: '13px 14px', whiteSpace: 'nowrap' }}>{record.updated_at ? new Date(record.updated_at).toLocaleString() : '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
       <section className="network-panel network-connections-panel">
 
         <div className="network-panel-header">

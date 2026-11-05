@@ -38,3 +38,44 @@ dist/
 # Operating system files
 .DS_Store
 Thumbs.db
+# Environment and secrets
+.env
+.env.*
+!.env.example
+
+# Python environment and cache
+backend/venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Local databases
+backend/*.db
+backend/*.sqlite
+backend/*.sqlite3
+
+# Temporary project backups
+*.backup
+*.backup_*
+*.pre-*-backup
+*.rbac-backup*
+*.network-backup
+backend/backups/
+
+# Local test and diagnostic output
+.pytest_cache/
+
+# Temporary backup files
+*.bak
+
+# Local source dumps and diagnostic copies
+Network-full.txt
+
+# Temporary test backups
+backend/tests/*.bak
+
+# Local diagnostic scripts
+backend/test_login.py
+
+# Versioned temporary backups
+*.pre-*-backup*

@@ -35,6 +35,7 @@ from app.models.network_connection_action import NetworkConnectionAction
 from app.models.network_traffic_snapshot import NetworkTrafficSnapshot
 from app.models.process import Process
 from app.models.file_integrity import FileIntegrity
+from app.models.user import User
 
 
 # ============================================================
@@ -82,15 +83,20 @@ from app.routes.security_changes import router as security_changes_router
 from app.routes.security_change_actions import router as security_change_actions_router
 from app.routes.access_governance import router as access_governance_router
 
+from app.models.live_connection_investigation import LiveConnectionInvestigation
+from app.models.live_connection_investigation_event import LiveConnectionInvestigationEvent
 from app.routes.network import router as network_router, seed_connections
 from app.routes.network_actions import router as network_actions_router
+from app.routes.live_investigations import router as live_investigations_router
 from app.routes.network_traffic import (
     router as network_traffic_router,
     capture_snapshot_safely,
 )
 
+from app.routes.firewall import router as firewall_router
 from app.routes.processes import router as processes_router
 from app.routes.file_integrity import router as file_integrity_router
+from app.routes.auth import router as auth_router
 
 
 # ============================================================
@@ -247,13 +253,17 @@ app.include_router(access_governance_router)
 # Network
 app.include_router(network_router)
 app.include_router(network_actions_router)
+app.include_router(live_investigations_router)
 app.include_router(network_traffic_router)
+app.include_router(firewall_router)
 
 # Processes
 app.include_router(processes_router)
 
 # File Integrity
 app.include_router(file_integrity_router)
+
+app.include_router(auth_router)
 
 
 # ============================================================

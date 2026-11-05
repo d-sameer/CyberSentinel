@@ -5,6 +5,8 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models.network_connection import NetworkConnection
+from app.services.windows_network_collector import collect_windows_connections
+from app.services.network_threat_detection import analyze_network_connections
 
 
 # ============================================================
@@ -361,6 +363,43 @@ def get_network_summary(
 
 
 # ============================================================
+# ============================================================
+# LIVE WINDOWS CONNECTION OBSERVATIONS (READ-ONLY)
+# ============================================================
+
+@router.get("/live/threats")
+def get_live_network_threats(limit: int = 200):
+    """Analyse live Windows connections without modifying them."""
+    try:
+        observations = collect_windows_connections(limit=limit)
+        observations["connections"] = analyze_network_connections(
+            observations["connections"]
+        )
+
+        flagged = [
+            connection
+            for connection in observations["connections"]
+            if connection["security_analysis"]["review_required"]
+        ]
+
+        return {
+            **observations,
+            "flagged_count": len(flagged),
+            "flagged_connections": flagged,
+        }
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+@router.get("/live")
+def get_live_windows_connections(
+    limit: int = 200,
+):
+    """Return live Windows connection observations without database writes."""
+    try:
+        return collect_windows_connections(limit=limit)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
 # GET SINGLE CONNECTION
 # ============================================================
 

@@ -14,7 +14,7 @@ import {
   ShieldCheck,
   Terminal,
 } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 
 type RuleSeverity = 'INFO' | 'WARNING' | 'HIGH'
@@ -519,6 +519,9 @@ function DetectionRuleDetails() {
   const [actionLoading, setActionLoading] = useState(false)
   const [backendConnected, setBackendConnected] = useState(false)
 
+  useEffect(() => {
+    void loadBackendData()
+  }, [ruleId])
   const loadBackendData = async () => {
     if (!ruleId) {
       setBackendConnected(false)

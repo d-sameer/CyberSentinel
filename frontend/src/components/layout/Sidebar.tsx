@@ -1,3 +1,4 @@
+
 import {
   Activity,
   AlertTriangle,
@@ -25,9 +26,11 @@ import {
   UserCog,
   Settings2,
   FileCog,
+  UserRoundCog,
 } from 'lucide-react'
 
 import { NavLink } from 'react-router-dom'
+import { useAuth } from '../../auth/AuthContext'
 
 const navigationItems = [
   {
@@ -112,7 +115,11 @@ const navigationItems = [
     badge: 3,
   },
   {
-    label: 'Network',
+    label: 'Firewall Security Center',
+    icon: ShieldCheck,
+    path: '/firewall',
+  },
+  {    label: 'Network',
     icon: Network,
     path: '/network',
   },
@@ -174,6 +181,9 @@ const navigationItems = [
 ]
 
 function Sidebar() {
+  const { user } = useAuth()
+  const isAdmin = user?.role === 'Admin'
+
   return (
     <aside className="sidebar">
       <div className="sidebar-brand">
@@ -182,19 +192,12 @@ function Sidebar() {
         </div>
 
         <div>
-          <div className="brand-name">
-            CyberSentinel
-          </div>
-
-          <div className="brand-subtitle">
-            SECURITY PLATFORM
-          </div>
+          <div className="brand-name">CyberSentinel</div>
+          <div className="brand-subtitle">SECURITY PLATFORM</div>
         </div>
       </div>
 
-      <div className="sidebar-section-label">
-        OPERATIONS
-      </div>
+      <div className="sidebar-section-label">OPERATIONS</div>
 
       <nav className="sidebar-navigation">
         {navigationItems.map((item) => {
@@ -210,23 +213,30 @@ function Sidebar() {
               }
             >
               <Icon size={18} />
-
               <span>{item.label}</span>
 
-              {item.badge && (
-                <span className="sidebar-badge">
-                  {item.badge}
-                </span>
+              {'badge' in item && item.badge && (
+                <span className="sidebar-badge">{item.badge}</span>
               )}
             </NavLink>
           )
         })}
+
+        {isAdmin && (
+          <NavLink
+            to="/user-management"
+            className={({ isActive }) =>
+              `sidebar-item ${isActive ? 'active' : ''}`
+            }
+          >
+            <UserRoundCog size={18} />
+            <span>User Management</span>
+          </NavLink>
+        )}
       </nav>
 
       <div className="sidebar-bottom">
-        <div className="sidebar-section-label">
-          SYSTEM
-        </div>
+        <div className="sidebar-section-label">SYSTEM</div>
 
         <button className="sidebar-item">
           <Terminal size={18} />
@@ -242,13 +252,8 @@ function Sidebar() {
           <span className="status-dot" />
 
           <div>
-            <div className="status-title">
-              System Operational
-            </div>
-
-            <div className="status-subtitle">
-              All services online
-            </div>
+            <div className="status-title">System Operational</div>
+            <div className="status-subtitle">All services online</div>
           </div>
         </div>
       </div>

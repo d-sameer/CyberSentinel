@@ -1,13 +1,14 @@
-
-import { lazy, Suspense } from 'react'
-import './App.css'
-
+import { lazy, Suspense, type ReactNode } from 'react'
 import {
   BrowserRouter,
   Navigate,
   Route,
   Routes,
+  useLocation,
 } from 'react-router-dom'
+import { AuthProvider, useAuth } from './auth/AuthContext'
+import Login from './pages/Login'
+import './App.css'
 
 import Sidebar from './components/layout/Sidebar'
 import Topbar from './components/layout/Topbar'
@@ -22,6 +23,7 @@ const Endpoints = lazy(() => import('./pages/Endpoints'))
 const EndpointDetails = lazy(() => import('./pages/EndpointDetails'))
 const Alerts = lazy(() => import('./pages/Alerts'))
 const AlertDetails = lazy(() => import('./pages/AlertDetails'))
+const Firewall = lazy(() => import('./pages/Firewall'))
 const Network = lazy(() => import('./pages/Network'))
 const NetworkConnectionDetails = lazy(
   () => import('./pages/NetworkConnectionDetails'),
@@ -101,11 +103,11 @@ const SecurityChangeDetails = lazy(
   () => import('./pages/SecurityChangeDetails'),
 )
 const AccessGovernance = lazy(() => import('./pages/AccessGovernance'))
+const UserManagement = lazy(() => import('./pages/UserManagement'))
 
-function App() {
+function DashboardLayout() {
   return (
-    <BrowserRouter>
-      <div className="app-shell">
+    <div className="app-shell">
         <Sidebar />
 
         <div className="app-main">
@@ -134,6 +136,8 @@ function App() {
                   path="/"
                   element={<Navigate to="/dashboard" replace />}
                 />
+
+                <Route path="/user-management" element={<UserManagement />} />
 
                 <Route path="/dashboard" element={<Dashboard />} />
                 <Route
@@ -164,6 +168,7 @@ function App() {
                 />
 
                 <Route path="/network" element={<Network />} />
+                <Route path="/firewall" element={<Firewall />} />
                 <Route
                   path="/network/:connectionId"
                   element={<NetworkConnectionDetails />}
@@ -332,7 +337,56 @@ function App() {
             </Suspense>
           </main>
         </div>
+    </div>
+  )
+}
+
+
+function ProtectedRoute({ children }: { children: ReactNode }) {
+  const { user, loading } = useAuth()
+  const location = useLocation()
+
+  if (loading) {
+    return (
+      <div
+        role="status"
+        aria-live="polite"
+        style={{
+          display: 'grid',
+          placeItems: 'center',
+          minHeight: '100vh',
+          background: '#070b12',
+          color: '#94a3b8',
+        }}
+      >
+        Verifying secure session...
       </div>
+    )
+  }
+
+  if (!user) {
+    return <Navigate to="/login" replace state={{ from: location }} />
+  }
+
+  return <>{children}</>
+}
+
+function App() {
+  return (
+    <BrowserRouter>
+      <AuthProvider>
+        <Routes>
+          <Route path="/login" element={<Login />} />
+          <Route
+            path="/*"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout />
+              </ProtectedRoute>
+            }
+          />
+        </Routes>
+      </AuthProvider>
     </BrowserRouter>
   )
 }
